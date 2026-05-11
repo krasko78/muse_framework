@@ -74,27 +74,7 @@ QAccessibleInterface* AccessibilityController::accessibleInterface(QObject* wind
     if (!qwindow) {
         return nullptr;
     }
-
-    auto appRoot = globalIoc()->resolve<IAccessibleAppRootObject>("accessibility");
-    if (!appRoot) {
-        return nullptr;
-    }
-
-    AccessibleObject* windowRoot = nullptr;
-    QWindow* w = qwindow;
-    while (w) {
-        windowRoot = appRoot->windowRoot(w);
-        if (windowRoot) {
-            break;
-        }
-        w = w->transientParent();
-    }
-
-    if (!windowRoot) {
-        return nullptr;
-    }
-
-    return static_cast<QAccessibleInterface*>(new AccessibleWindowInterface(window, windowRoot));
+    return static_cast<QAccessibleInterface*>(new AccessibleWindowInterface(window));
 }
 
 void AccessibilityController::deinit()

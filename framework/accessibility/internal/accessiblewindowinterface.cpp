@@ -43,10 +43,30 @@
 
 using namespace muse::accessibility;
 
-AccessibleWindowInterface::AccessibleWindowInterface(QObject* window, AccessibleObject* children)
-    : m_children(children)
+AccessibleWindowInterface::AccessibleWindowInterface(QObject* window)
 {
     m_window = qobject_cast<QWindow*>(window);
+}
+
+AccessibleObject* AccessibleWindowInterface::resolveWindowRoot() const
+{
+    if (!m_window) {
+        return nullptr;
+    }
+
+    auto appRoot = muse::modularity::globalIoc()->resolve<IAccessibleAppRootObject>("accessibility");
+    if (!appRoot) {
+        return nullptr;
+    }
+
+    QWindow* w = m_window;
+    while (w) {
+        if (AccessibleObject* root = appRoot->windowRoot(w)) {
+            return root;
+        }
+        w = w->transientParent();
+    }
+    return nullptr;
 }
 
 bool AccessibleWindowInterface::isValid() const
@@ -75,58 +95,61 @@ QRect AccessibleWindowInterface::rect() const
 QAccessibleInterface* AccessibleWindowInterface::parent() const
 {
     auto appRoot = muse::modularity::globalIoc()->resolve<IAccessibleAppRootObject>("accessibility");
-    if (m_window && appRoot && appRoot->windowRoot(m_window)) {
-        return QAccessible::queryAccessibleInterface(appRoot->asQObject());
+    if (!appRoot) {
+        return nullptr;
     }
-    return nullptr;
+    return QAccessible::queryAccessibleInterface(appRoot->asQObject());
 }
 
 int AccessibleWindowInterface::childCount() const
 {
-    if (!m_children) {
+    AccessibleObject* root = resolveWindowRoot();
+    if (!root) {
         return 0;
     }
 
-    auto controller = m_children->controller().lock();
+    auto controller = root->controller().lock();
     if (!controller) {
         return 0;
     }
 
-    int count = controller->childCount(m_children->item());
-    MYLOG() << "item: " << m_children->item()->accessibleName() << ", childCount: " << count;
+    int count = controller->childCount(root->item());
+    MYLOG() << "item: " << root->item()->accessibleName() << ", childCount: " << count;
     return count;
 }
 
 QAccessibleInterface* AccessibleWindowInterface::child(int index) const
 {
-    if (!m_children) {
+    AccessibleObject* root = resolveWindowRoot();
+    if (!root) {
         return nullptr;
     }
 
-    auto controller = m_children->controller().lock();
+    auto controller = root->controller().lock();
     if (!controller) {
         return nullptr;
     }
 
-    QAccessibleInterface* iface = controller->child(m_children->item(), index);
-    MYLOG() << "item: " << m_children->item()->accessibleName() << ", child: " << index << " " <<
+    QAccessibleInterface* iface = controller->child(root->item(), index);
+    MYLOG() << "item: " << root->item()->accessibleName() << ", child: " << index << " " <<
         (iface ? iface->text(QAccessible::Name) : "null");
     return iface;
 }
 
 int AccessibleWindowInterface::indexOfChild(const QAccessibleInterface* iface) const
 {
-    if (!m_children) {
+    AccessibleObject* root = resolveWindowRoot();
+    if (!root) {
         return -1;
     }
 
-    auto controller = m_children->controller().lock();
+    auto controller = root->controller().lock();
     if (!controller) {
         return -1;
     }
 
-    int idx = controller->indexOfChild(m_children->item(), iface);
-    MYLOG() << "item: " << m_children->item()->accessibleName() << ", indexOfChild: " <<
+    int idx = controller->indexOfChild(root->item(), iface);
+    MYLOG() << "item: " << root->item()->accessibleName() << ", indexOfChild: " <<
         (iface ? iface->text(QAccessible::Name) : "null") << " = " << idx;
     return idx;
 }
@@ -139,17 +162,18 @@ QAccessibleInterface* AccessibleWindowInterface::childAt(int, int) const
 
 QAccessibleInterface* AccessibleWindowInterface::focusChild() const
 {
-    if (!m_children) {
+    AccessibleObject* root = resolveWindowRoot();
+    if (!root) {
         return nullptr;
     }
 
-    auto controller = m_children->controller().lock();
+    auto controller = root->controller().lock();
     if (!controller) {
         return nullptr;
     }
 
-    QAccessibleInterface* child = controller->focusedChild(m_children->item());
-    MYLOG() << "item: " << m_children->item()->accessibleName() << ", focused child: " << (child ? child->text(QAccessible::Name) : "null");
+    QAccessibleInterface* child = controller->focusedChild(root->item());
+    MYLOG() << "item: " << root->item()->accessibleName() << ", focused child: " << (child ? child->text(QAccessible::Name) : "null");
     return child;
 }
 

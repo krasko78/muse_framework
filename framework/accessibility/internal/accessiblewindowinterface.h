@@ -29,7 +29,7 @@ namespace muse::accessibility {
 class AccessibleWindowInterface : public QAccessibleInterface
 {
 public:
-    AccessibleWindowInterface(QObject* window, AccessibleObject* children);
+    explicit AccessibleWindowInterface(QObject* window);
 
     bool isValid() const override;
     QObject* object() const override;
@@ -53,7 +53,8 @@ protected:
     void* interface_cast(QAccessible::InterfaceType t) override;
 
 private:
+    AccessibleObject* resolveWindowRoot() const;
+
     QWindow* m_window = nullptr;
-    AccessibleObject* m_children = nullptr;
 };
 }
