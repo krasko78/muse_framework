@@ -5,7 +5,7 @@
  * MuseScore Studio
  * Music Composition & Notation
  *
- * Copyright (C) 2026 MuseScore Limited and others
+ * Copyright (C) 2026 MuseScore Limited
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -23,13 +23,13 @@
 
 #include <QAccessibleInterface>
 
-#include "accessibleobject.h"
-
 namespace muse::accessibility {
-class AccessibleWindowInterface : public QAccessibleInterface
+class AccessibleAppRootObject;
+
+class AccessibleAppRootInterface : public QAccessibleInterface
 {
 public:
-    explicit AccessibleWindowInterface(QObject* window);
+    AccessibleAppRootInterface(AccessibleAppRootObject* root);
 
     bool isValid() const override;
     QObject* object() const override;
@@ -53,8 +53,6 @@ protected:
     void* interface_cast(QAccessible::InterfaceType t) override;
 
 private:
-    AccessibleObject* resolveWindowRoot() const;
-
-    QWindow* m_window = nullptr;
+    AccessibleAppRootObject* m_root = nullptr;
 };
 }
