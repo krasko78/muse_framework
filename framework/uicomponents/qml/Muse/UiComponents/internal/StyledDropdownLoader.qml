@@ -32,6 +32,7 @@ Loader {
 
     property int currentIndex: -1
     property int visibleItemsCount: 0
+    property bool liveSelect: false // krasko: when true, dropdown will remain open after an item is activated
 
     property int itemWidth: 0
     property int itemHeight: 0
@@ -82,8 +83,17 @@ Loader {
         accessibleWindow: loader.Window.window
 
         onHandleItem: function(index, value) {
-            item.close()
+            if (!loader.liveSelect) { // krasko start
+                item.close()
+            } // krasko end
             Qt.callLater(loader.handleItem, index, value)
+        }
+
+        onItemNavActivated: function(index, value) { // krasko
+            // activate highlighted item if liveSelect is on
+            if (loader.liveSelect && index !== loader.currentIndex) {
+                Qt.callLater(loader.handleItem, index, value)
+            }
         }
 
         onClosed: {
@@ -92,6 +102,12 @@ Loader {
     }
 
     function open(model) {
+        // krasko start: Ctrl+open of the dropdown will activate liveSelect
+        const modifiers = ui.keyboardModifiers();
+        const ctrlHeld = modifiers & Qt.ControlModifier;
+        loader.liveSelect = ctrlHeld
+        // krasko end
+
         prv.load()
 
         var dropdown = loader.dropdown

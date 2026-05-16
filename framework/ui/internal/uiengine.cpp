@@ -58,7 +58,7 @@ void UiEngine::init()
     QQmlContext* rootContext = m_engine->rootContext();
     rootContext->setObjectName(QString("Root QQmlContext: %1").arg(qmlIoc->ctx->id));
     rootContext->setContextProperty("ioc_context", QVariant::fromValue(qmlIoc));
-
+ 
     rootContext->setContextProperty("ui", this);
     rootContext->setContextProperty("api", m_api);
 

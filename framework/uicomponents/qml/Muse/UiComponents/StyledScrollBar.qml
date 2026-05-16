@@ -45,7 +45,7 @@ ScrollBar {
         implicitHeight: root.thickness
 
         radius: root.thickness / 2
-        color: ui.theme.fontPrimaryColor
+        color: appshellConfig.scrollbarColor // krasko
         opacity: 0.0
         visible: false
 

@@ -69,6 +69,8 @@ public:
         Val value;
         Val defaultValue;
         std::string description;
+        std::string helpString; // krasko
+        std::string ordinal; // krasko
 
         bool canBeManuallyEdited = false;
         Val minValue;
@@ -99,12 +101,20 @@ public:
 
     void setDescription(const Key& key, const std::string& value);
 
+    void setHelpString(const Key& key, const std::string& value); // krasko
+
+    void setOrdinal(const Key& key, const std::string& ordinal); // krasko
+
     void setCanBeManuallyEdited(const Settings::Key& key, bool canBeManuallyEdited, const Val& minValue = Val(),
                                 const Val& maxValue = Val());
 
     void beginTransaction(bool notifyToOtherInstances = true);
     void commitTransaction(bool notifyToOtherInstances = true);
     void rollbackTransaction(bool notifyToOtherInstances = true);
+
+    void copyValue(const Key& targetKey, const std::string& sourceKeyName, bool preserveType = false); // krasko
+    void copyValue(const Key& targetKey, const Key& sourceKey, bool preserveType = false); // krasko
+    void remove(const Key& key); // krasko
 
     async::Channel<Val> valueChanged(const Key& key) const;
 
@@ -135,4 +145,38 @@ inline Settings* settings()
 {
     return Settings::instance();
 }
+
+class SettingsCreator // krasko
+{
+public:
+    SettingsCreator(Settings* settings);
+
+    ~SettingsCreator();
+
+    const std::vector<const muse::Settings::Key*>& allKeys();
+
+    const SettingsCreator& createSetting(const std::string& moduleName, const std::string& key);
+
+    const SettingsCreator& setDefaultValue(const Val& value) const;
+
+    const SettingsCreator& setDescription(const std::string& value) const;
+
+    const SettingsCreator& setHelpString(const std::string& value) const;
+
+    const SettingsCreator& setOrdinal(int ordinal) const;
+
+    const SettingsCreator& setMinValue(const Val& minValue) const;
+
+    const SettingsCreator& setMaxValue(const Val& maxValue) const;
+
+    async::Channel<Val> valueChanged() const;
+
+    const SettingsCreator& withoutValueChangedNotifications() const;
+
+private:
+    Settings* m_settings;
+    std::vector<const muse::Settings::Key*> m_allKeys;
+    int m_ordinal;
+    const Settings::Key* m_key = nullptr;
+};
 }

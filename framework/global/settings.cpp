@@ -253,7 +253,7 @@ void Settings::setDefaultValue(const Key& key, const Val& value)
     Item& item = findItem(key);
 
     if (item.isNull()) {
-        m_items[key] = Item{ key, value, value, "", false, Val(), Val() };
+        m_items[key] = Item{ key, value, value, "", "" /*helpString*/, "" /*ordinal*/, false, Val(), Val() }; // krasko
     } else {
         item.defaultValue = value;
         item.value.setType(value.type());
@@ -270,12 +270,32 @@ void Settings::setDescription(const Key& key, const std::string& value)
     item.description = value;
 }
 
+void Settings::setHelpString(const Key& key, const std::string& value) // krasko
+{
+    Item& item = findItem(key);
+    if (item.isNull()) {
+        return;
+    }
+
+    item.helpString = value;
+}
+
+void Settings::setOrdinal(const Key& key, const std::string& value) // krasko
+{
+    Item& item = findItem(key);
+    if (item.isNull()) {
+        return;
+    }
+
+    item.ordinal = value;
+}
+
 void Settings::setCanBeManuallyEdited(const Settings::Key& key, bool canBeManuallyEdited, const Val& minValue, const Val& maxValue)
 {
     Item& item = findItem(key);
 
     if (item.isNull()) {
-        m_items[key] = Item{ key, Val(), Val(), "", canBeManuallyEdited, minValue, maxValue };
+        m_items[key] = Item{ key, Val(), Val(), "", "" /*helpString*/, "" /*ordinal*/, canBeManuallyEdited, minValue, maxValue }; // krasko
     } else {
         item.canBeManuallyEdited = canBeManuallyEdited;
         item.minValue = minValue;
@@ -285,7 +305,7 @@ void Settings::setCanBeManuallyEdited(const Settings::Key& key, bool canBeManual
 
 void Settings::insertNewItem(const Settings::Key& key, const Val& value)
 {
-    Item item = Item{ key, value, value, "", false, Val(), Val() };
+    Item item = Item{ key, value, value, "", "" /*helpString*/, "" /*ordinal*/, false, Val(), Val() }; // krasko
     if (m_isTransactionStarted) {
         m_localSettings[key] = item;
     } else {
@@ -364,6 +384,39 @@ void Settings::rollbackTransaction(bool notifyToOtherInstances)
 #endif
 }
 
+void Settings::copyValue(const Key& targetKey, const std::string& sourceKeyName, bool preserveType /*= false*/) // krasko
+{
+    // Preserve the module name
+    copyValue(targetKey, Settings::Key(targetKey.moduleName, sourceKeyName), preserveType);
+}
+
+void Settings::copyValue(const Key& targetKey, const Key& sourceKey, bool preserveType /*= false*/) // krasko
+{
+    const Settings::Item& sourceItem = findItem(sourceKey);
+    if (!sourceItem.isNull()) {
+        Settings::Item& targetItem = findItem(targetKey);
+        if (!targetItem.isNull()) {
+            Val::Type type = targetItem.value.type();
+            setSharedValue(targetKey, value(sourceKey));
+            if (preserveType) {
+                targetItem.value.setType(type);
+            }
+        }
+    }
+}
+
+// Used to remove settings no longer used / needed
+void Settings::remove(const Key& key) // krasko
+{
+    m_settings->remove(QString::fromStdString(key.key));
+
+    Items& allItems = m_isTransactionStarted ? m_localSettings : m_items;
+    auto it = allItems.find(key);
+    if (it != allItems.end()) {
+        allItems.erase(it);
+    }
+}
+
 Settings::Item& Settings::findItem(const Key& key) const
 {
     Items& items = m_isTransactionStarted ? m_localSettings : m_items;
@@ -414,3 +467,103 @@ bool Settings::Key::isNull() const
 {
     return key.empty();
 }
+
+
+// --- SettingsCreator --- // krasko
+
+SettingsCreator::SettingsCreator(Settings* settings)
+{
+    m_settings = settings;
+    m_ordinal = 0;
+}
+
+SettingsCreator::~SettingsCreator()
+{
+    qDeleteAll(m_allKeys);
+}
+
+const std::vector<const muse::Settings::Key*>& SettingsCreator::allKeys()
+{
+    return m_allKeys;
+}
+
+const SettingsCreator& SettingsCreator::createSetting(const std::string& moduleName, const std::string& key)
+{
+    m_key = new Settings::Key(moduleName, key);
+    setOrdinal(++m_ordinal);
+    m_allKeys.push_back(m_key);
+    return *this;
+}
+
+const SettingsCreator& SettingsCreator::setDefaultValue(const Val& value) const
+{
+    m_settings->setDefaultValue(*m_key, value);
+    return *this;
+}
+
+const SettingsCreator& SettingsCreator::setDescription(const std::string& value) const
+{
+    m_settings->setDescription(*m_key, value);
+    return *this;
+}
+
+const SettingsCreator& SettingsCreator::setHelpString(const std::string& value) const
+{
+    m_settings->setHelpString(*m_key, value);
+    return *this;
+}
+
+const SettingsCreator& SettingsCreator::setOrdinal(int ordinal) const
+{
+    char buffer[10];
+    sprintf(buffer, "%08d", ordinal);
+
+    m_settings->setOrdinal(*m_key, "krasko-" + std::string(buffer));
+    return *this;
+}
+
+const SettingsCreator& SettingsCreator::setMinValue(const Val& minValue) const
+{
+    bool canBeManuallyEdited = false;
+    Val maxValue = Val();
+
+    auto it = m_settings->items().find(*m_key);
+
+    if (it != m_settings->items().end()) {
+        canBeManuallyEdited = it->second.canBeManuallyEdited;
+        maxValue = it->second.maxValue;
+    }
+
+    m_settings->setCanBeManuallyEdited(*m_key, canBeManuallyEdited, minValue, maxValue);
+    return *this;
+}
+
+const SettingsCreator& SettingsCreator::setMaxValue(const Val& maxValue) const
+{
+    bool canBeManuallyEdited = false;
+    Val minValue = Val();
+
+    auto it = m_settings->items().find(*m_key);
+
+    if (it != m_settings->items().end()) {
+        canBeManuallyEdited = it->second.canBeManuallyEdited;
+        minValue = it->second.minValue;
+    }
+
+    m_settings->setCanBeManuallyEdited(*m_key, canBeManuallyEdited, minValue, maxValue);
+    return *this;
+}
+
+async::Channel<Val> SettingsCreator::valueChanged() const
+{
+    return m_settings->valueChanged(*m_key);
+}
+
+const SettingsCreator& SettingsCreator::withoutValueChangedNotifications() const
+{
+    // No work needed here. This method is just an indication that the setting
+    // currently does not need to be listened to for changes. If it does, call
+    // valueChanged() instead and subscribe for notifications using the channel returned.
+    return *this;
+}
+

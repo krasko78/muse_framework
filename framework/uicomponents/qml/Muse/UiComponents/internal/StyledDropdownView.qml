@@ -23,6 +23,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls // krasko: needed for ScrollBar.AlwaysOn
 
 import Muse.Ui
 import Muse.UiComponents
@@ -77,10 +78,12 @@ DropdownView {
     focusPolicies: PopupView.NoFocus
 
     signal handleItem(int index, var value)
+    signal itemNavActivated(int index, var value) // krasko
 
     onOpened: {
-        content.navigationSection.requestActive()
+        //content.navigationSection.requestActive() // krasko: do not focus the first nav control; current item will be focused two lines below
 
+        prv.finishedOpening = true // krasko
         prv.positionViewAtIndex(root.currentIndex)
         prv.navigateToItem(root.currentIndex)
     }
@@ -149,6 +152,12 @@ DropdownView {
 
             model: root.model
 
+            Component.onCompleted: { // krasko
+                if (appshellConfig.showScrollbarOnScrollableDropDownLists) {
+                    scrollBarPolicy = ScrollBar.AlwaysOn
+                }
+            }
+
             property NavigationPanel navigationPanel: NavigationPanel {
                 name: "Dropdown"
                 section: root.navigationSection
@@ -195,6 +204,8 @@ DropdownView {
 
             QtObject {
                 id: prv
+
+                property bool finishedOpening: false // krasko
 
                 function positionViewAtIndex(itemIndex) {
                     view.positionViewAtIndex(itemIndex, ListView.Contain)
@@ -247,6 +258,11 @@ DropdownView {
                     if (navigation.highlight) {
                         view.positionViewAtIndex(index, ListView.Contain)
                         Qt.callLater(prv.navigateToItem, index)
+                    }
+
+                    if (navigation.active && prv.finishedOpening) {  // krasko
+                        var value = Utils.getItemValue(root.model, item.index, root.valueRole, undefined)
+                        root.itemNavActivated(item.index, value)
                     }
                 }
 

@@ -32,7 +32,7 @@ StyledPopupView {
     property alias description: descriptionLabel.text
     property string shortcut: ""
 
-    contentWidth: Math.min(content.implicitWidth, 300 - margins * 2)
+    contentWidth: Math.min(content.implicitWidth, 300 + Math.floor(title.length / 40) * 15 - margins * 2) // krasko
     contentHeight: content.implicitHeight
 
     x: root.parent.width / 2 - (contentWidth + padding * 2 + margins * 2) / 2

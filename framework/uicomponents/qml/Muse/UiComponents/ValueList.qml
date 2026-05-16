@@ -39,6 +39,8 @@ Item {
     property string keyRoleName: "key"
     //: As in a "key/value" pair: for example, the "key" could be
     //: the name of a setting and the "value" the value of that setting.
+    property string helpStringRoleName: "helpString" // krasko
+    property string sortRoleName: "" // krasko
     property string keyTitle: qsTrc("ui", "Key", "key/value")
     property string valueRoleName: "value"
     property string valueTitle: qsTrc("ui", "Value")
@@ -83,11 +85,15 @@ Item {
 
         function toggleSorter(sorter) {
             if (!sorter.enabled) {
-                setSorterEnabled(sorter, true)
+                for (var i = 0; i < sortFilterProxyModel.sorters.length; i++) { // krasko start
+                    var currentSorter = sortFilterProxyModel.sorters[i];
+                    setSorterEnabled(currentSorter, currentSorter === sorter)
+                } // krasko end
             } else if (sorter.sortOrder === Qt.AscendingOrder) {
                 sorter.sortOrder = Qt.DescendingOrder
             } else {
                 setSorterEnabled(sorter, false)
+                setSorterEnabled(defaultSorter, sorter !== defaultSorter && sortRoleName.length > 0) // krasko
             }
 
             selectionModel.clear()
@@ -111,6 +117,11 @@ Item {
         id: sortFilterProxyModel
 
         sorters: [
+            SorterValue { // krasko start
+                id: defaultSorter
+                roleName: sortRoleName
+                enabled: sortRoleName.length > 0
+            }, // krasko end
             SorterValue {
                 id: keySorter
                 roleName: keyRoleName
@@ -270,6 +281,7 @@ Item {
             property int sourceRow: sortFilterProxyModel.mapToSource(modelIndex).row
 
             keyRoleName: root.keyRoleName
+            helpStringRoleName: root.helpStringRoleName // krasko
             valueRoleName: root.valueRoleName
             valueTypeRole: root.valueTypeRole
             valueEnabledRoleName: root.valueEnabledRoleName

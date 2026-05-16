@@ -31,6 +31,7 @@ ListItemBlank {
 
     property var item: null
     property string keyRoleName: "key"
+    property string helpStringRoleName: "helpString" // krasko
     property string valueRoleName: "value"
     property string valueTypeRole: "valueType"
     property string valueEnabledRoleName: "enabled"
@@ -95,6 +96,11 @@ ListItemBlank {
         function isNumberComponent() {
             return root.item[valueTypeRole] === "Int" || root.item[valueTypeRole] === "Double"
         }
+
+        function isSeparator() { // krasko
+            var title = root.item[keyRoleName]
+            return title.startsWith('---') /*hyphens*/ || title.startsWith('–––') /*dashes*/
+        }
     }
 
     onClicked: {
@@ -120,6 +126,7 @@ ListItemBlank {
             StyledIconLabel {
                 id: icon
                 iconCode: Boolean(root.item[iconRoleName]) ? root.item[iconRoleName] : IconCode.NONE
+                visible: iconCode != IconCode.NONE // krasko
             }
 
             Loader {
@@ -167,6 +174,21 @@ ListItemBlank {
                     horizontalAlignment: Text.AlignLeft
                 }
             }
+
+            FlatButton { // krasko start
+                width: 20
+                height: width
+
+                icon: IconCode.QUESTION
+                transparent: true
+
+                toolTipTitle: Boolean(root.item[helpStringRoleName]) ? root.item[helpStringRoleName] : ""
+                visible: Boolean(toolTipTitle)
+
+                navigation.panel: root.navigation.panel
+                navigation.row: root.navigation.row
+                navigation.column: 1
+            } // krasko end
         }
 
         SeparatorLine {}
@@ -191,7 +213,8 @@ ListItemBlank {
 
             enabled: root.item[valueEnabledRoleName] !== undefined ? root.item[valueEnabledRoleName] : true
 
-            sourceComponent: !root.readOnly ? privateProperties.componentByType(root.item[valueTypeRole]) : readOnlyComponent
+            sourceComponent: !root.readOnly && !privateProperties.isSeparator() // krasko
+                                ? privateProperties.componentByType(root.item[valueTypeRole]) : readOnlyComponent
 
             onLoaded: {
                 valueLoader.item.val = valueLoader.val
@@ -450,7 +473,7 @@ ListItemBlank {
 
             navigation.panel: root.navigation.panel
             navigation.row: root.navigation.row
-            navigation.column: 1
+            navigation.column: 2 // krasko
 
             color: val
             allowAlpha: true
@@ -474,7 +497,7 @@ ListItemBlank {
 
             navigation.panel: root.navigation.panel
             navigation.row: root.navigation.row
-            navigation.column: 1
+            navigation.column: 2 // krasko
 
             currentValue: val
 
@@ -500,7 +523,7 @@ ListItemBlank {
 
             navigation.panel: root.navigation.panel
             navigation.row: root.navigation.row
-            navigation.column: 1
+            navigation.column: 2 // krasko
 
             currentValue: val
             step: 1.0
@@ -524,7 +547,7 @@ ListItemBlank {
 
             navigation.panel: root.navigation.panel
             navigation.row: root.navigation.row
-            navigation.column: 1
+            navigation.column: 2 // krasko
 
             checked: val ? true : false
             onClicked: {

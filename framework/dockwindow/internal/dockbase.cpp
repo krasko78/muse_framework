@@ -136,6 +136,18 @@ Location DockBase::location() const
     return m_properties.location;
 }
 
+bool DockBase::hasValidLastPosition() const // krasko
+{
+    Q_ASSERT(m_dockWidget);
+    return m_dockWidget->hasPreviousDockedLocation();
+}
+
+bool DockBase::isDockedInHiddenContainer() const // krasko
+{
+    Q_ASSERT(m_dockWidget);
+    return m_dockWidget->isDockedInHiddenContainer();
+}
+
 QPoint DockBase::globalPosition() const
 {
     if (!m_dockWidget) {
@@ -459,8 +471,14 @@ void DockBase::open()
         return;
     }
 
-    setVisible(true);
-    m_dockWidget->show();
+    // If the widget is in the frame (was not closed), just ask the frame to make the widget's tab active.
+    // Otherwise show the widget. This will add it back into the frame or float it. It will also make it active.
+    if (m_dockWidget->frame() && m_dockWidget->frame()->containsDockWidget(m_dockWidget)) { // krasko
+        m_dockWidget->frame()->setCurrentDockWidget(m_dockWidget);
+    } else {
+        setVisible(true);
+        m_dockWidget->show();
+    }
 
     applySizeConstraints();
 }

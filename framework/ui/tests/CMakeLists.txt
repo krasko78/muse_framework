@@ -31,6 +31,7 @@ set(MODULE_TEST_SRC
     )
 
 set(MODULE_TEST_LINK
+    appshell # krasko
     muse_actions
     muse_ui
     # Linking a non-qml module (or its tests) to its qml counterpart should 

@@ -60,7 +60,7 @@ Item {
 
         property bool active: false
 
-        color: "black"
+        color: appshellConfig.scrollbarColor // krasko
         border.color: "white"
         border.width: 1
         radius: root.thickness / 2

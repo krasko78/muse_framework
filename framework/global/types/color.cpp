@@ -114,6 +114,44 @@ int Color::alpha() const
     return getAlpha(m_rgba);
 }
 
+int Color::hue() const // krasko start
+{
+    int max = std::max(std::max(red(), green()), blue());
+    int min = std::min(std::min(red(), green()), blue());
+    int delta = max - min;
+
+    if (delta == 0) {
+        return 0;
+    }
+
+    int h;
+
+    if (max == red())
+        h = 60 * (green() - blue()) / delta;
+    else if (max == green())
+        h = 60 * (blue() - red()) / delta + 120;
+    else
+        h = 60 * (red() - green()) / delta + 240;
+
+    if (h < 0) {
+        h += 360;
+    }
+
+    return h;
+}
+
+int Color::sat() const
+{
+    int max = std::max(std::max(red(), green()), blue());
+    int min = std::min(std::min(red(), green()), blue());
+    return max == 0 ? 0 : 255 * (max - min) / max;
+}
+
+int Color::brightness() const
+{
+    return std::max(std::max(red(), green()), blue());
+} // krasko end
+
 #ifndef NO_QT_SUPPORT
 Color Color::fromQColor(const QColor& color)
 {

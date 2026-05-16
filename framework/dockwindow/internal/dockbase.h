@@ -109,6 +109,8 @@ public:
     int nonCompactWidth() const;
 
     bool floating() const;
+    bool hasValidLastPosition() const; // krasko
+    bool isDockedInHiddenContainer() const; // krasko
 
     bool inited() const;
 

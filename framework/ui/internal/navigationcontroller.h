@@ -103,7 +103,9 @@ private:
         FirstControl,
         LastControl,
         NextRowControl,
-        PrevRowControl
+        PrevRowControl,
+        NextControl, // krasko
+        PrevControl // krasko
     };
 
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -119,6 +121,8 @@ private:
     void goToLastControl();
     void goToNextRowControl();
     void goToPrevRowControl();
+    void goToNextControl(); // krasko
+    void goToPrevControl(); // krasko
 
     void goToControl(MoveDirection direction, INavigationPanel* activePanel = nullptr);
 

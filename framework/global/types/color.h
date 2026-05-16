@@ -83,6 +83,12 @@ public:
     int blue() const;
     int alpha() const;
 
+    // krasko start
+    int hue() const;          // range 0-360
+    int sat() const;          // range 0-255
+    int brightness() const;   // range 0-255
+    // krasko end
+
 #ifndef NO_QT_SUPPORT
     static Color fromQColor(const QColor& color);
     QColor toQColor() const;
