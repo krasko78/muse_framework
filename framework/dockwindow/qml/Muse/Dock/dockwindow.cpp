@@ -275,6 +275,11 @@ void DockWindow::loadPage(const QString& uri, const QVariantMap& params)
     }
 }
 
+void DockWindow::openPage(const QString& uri)
+{
+    interactive()->open(uri.toStdString());
+}
+
 bool DockWindow::isDockOpen(const QString& dockName) const
 {
     return m_currentPage && m_currentPage->isDockOpen(dockName);
