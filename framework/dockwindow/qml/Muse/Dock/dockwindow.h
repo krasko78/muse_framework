@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  * MuseScore-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
  * Copyright (C) 2021 MuseScore Limited and others
@@ -79,7 +79,12 @@ public:
     QQuickWindow* windowProperty() const;
 
     Q_INVOKABLE void init();
+    /* loadPage() is used internally by the InteractiveProvider. Regular code should call
+     * openPage(), to ensure the Interactive's m_openingObject query will be properly set
+     * by the time Interactive::onOpen() is called (from DockWindow>onPageLoaded).
+     */
     Q_INVOKABLE void loadPage(const QString& uri, const QVariantMap& params);
+    Q_INVOKABLE void openPage(const QString& uri);
 
     //! IDockWindow
     bool isDockOpen(const QString& dockName) const override;

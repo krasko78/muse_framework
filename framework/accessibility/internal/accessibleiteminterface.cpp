@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  * MuseScore-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
  * Copyright (C) 2021 MuseScore Limited and others
@@ -29,10 +29,10 @@
 
 #include "log.h"
 
-//#define MUE_ENABLE_ACCESSIBILITY_TRACE
+//#define MUSE_ACCESSIBILITY_TRACE
 
 #undef MYLOG
-#ifdef MUE_ENABLE_ACCESSIBILITY_TRACE
+#ifdef MUSE_ACCESSIBILITY_TRACE
 #define MYLOG() LOGI()
 #else
 #define MYLOG() LOGN()

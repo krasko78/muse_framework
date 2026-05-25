@@ -26,7 +26,7 @@ df -h .
 
 BUILD_TOOLS=$HOME/build_tools
 ENV_FILE=$BUILD_TOOLS/environment.sh
-PACKARCH="x86_64" # x86_64, armv7l, aarch64, wasm
+PACKARCH="x86_64" # x86_64, aarch64, wasm
 COMPILER="gcc" # gcc, clang
 EMSDK_VERSION="4.0.7" # for Qt 6.10
 BUILD_PIPEWIRE=false
@@ -46,9 +46,9 @@ mkdir -p $BUILD_TOOLS
 # Let's remove the file with environment variables to recreate it
 rm -f $ENV_FILE
 
-echo "echo 'Setup MuseScore build environment'" >> $ENV_FILE
+echo "echo 'Setup build environment'" >> $ENV_FILE
 
-if [[ "$PACKARCH" == "armv7l" ]]; then
+if false; then # Use this when running in a Docker container
   SUDO=""
   export DEBIAN_FRONTEND="noninteractive" TZ="Europe/London"
 else
@@ -91,7 +91,7 @@ if $BUILD_PIPEWIRE ; then
     libdbus-1-dev
     libudev-dev
     )
-fi
+fi  
 
 $SUDO apt-get install -y --no-install-recommends \
   "${apt_packages_tools[@]}" \
@@ -105,23 +105,36 @@ $SUDO apt-get install -y --no-install-recommends \
 # COMPILER
 if [ "$COMPILER" == "gcc" ]; then
 
-  gcc_version="10"
-  $SUDO apt-get install -y --no-install-recommends "g++-${gcc_version}"
-  $SUDO update-alternatives \
-    --install /usr/bin/gcc gcc "/usr/bin/gcc-${gcc_version}" 40 \
-    --slave /usr/bin/g++ g++ "/usr/bin/g++-${gcc_version}"
+  gcc_version="14"
+  $SUDO apt install -y --no-install-recommends "g++-${gcc_version}"
 
-  echo export CC="/usr/bin/gcc-${gcc_version}" >> ${ENV_FILE}
-  echo export CXX="/usr/bin/g++-${gcc_version}" >> ${ENV_FILE}
+  for alt in gcc g++; do
+    if update-alternatives --query "$alt" >/dev/null 2>&1; then
+      $SUDO update-alternatives --remove-all "$alt"
+    fi
+    $SUDO update-alternatives --install "/usr/bin/$alt" "$alt" "/usr/bin/${alt}-${gcc_version}" 100
+  done
+  echo export CC="/usr/bin/gcc" >> "${ENV_FILE}"
+  echo export CXX="/usr/bin/g++" >> "${ENV_FILE}"
 
-  gcc-${gcc_version} --version
-  g++-${gcc_version} --version
+  gcc --version
+  g++ --version
 
 elif [ "$COMPILER" == "clang" ]; then
 
-  $SUDO apt-get install clang
-  echo export CC="/usr/bin/clang" >> ${ENV_FILE}
-  echo export CXX="/usr/bin/clang++" >> ${ENV_FILE}
+  clang_version="20"
+  $SUDO apt install -y --no-install-recommends "clang-${clang_version}"
+  $SUDO apt install -y --no-install-recommends "clang-tools-${clang_version}"
+
+  for alt in clang clang++ clang-scan-deps; do
+    if update-alternatives --query "$alt" >/dev/null 2>&1; then
+      $SUDO update-alternatives --remove-all "$alt"
+    fi
+    $SUDO update-alternatives --install "/usr/bin/$alt" "$alt" "/usr/bin/${alt}-${clang_version}" 100
+  done
+
+  echo export CC="/usr/bin/clang" >> "${ENV_FILE}"
+  echo export CXX="/usr/bin/clang++" >> "${ENV_FILE}"
 
   clang --version
   clang++ --version
@@ -131,20 +144,22 @@ else
 fi
 
 # CMake
-if [[ "$PACKARCH" == "armv7l" ]]; then
+if ! command -v cmake &>/dev/null; then
   $SUDO apt-get install -y --no-install-recommends cmake
 fi
 echo "cmake version"
 cmake --version
 
 # Ninja
-if [[ "$PACKARCH" == "armv7l" ]]; then
+if ! command -v ninja &>/dev/null; then
   $SUDO apt-get install -y --no-install-recommends ninja-build
 fi
 echo "ninja version"
 ninja --version
 
 # Qt 
+# QT_ROOT_DIR - set by the Qt installation action (jurplel/install-qt-action@v4)
+# QT_DIR - used by the build environment
 echo export QT_DIR="${QT_ROOT_DIR}" >> ${ENV_FILE}
 
 # Emscripten
@@ -160,14 +175,13 @@ if [[ "$PACKARCH" == "wasm" ]]; then
 fi
 
 # Python3-pip
-if [[ "$PACKARCH" == "armv7l" ]]; then
+if ! command -v pip3 &>/dev/null; then
   $SUDO apt-get install -y --no-install-recommends python3-pip
 fi
 
 ##########################################################################
 # BUILD PIPWIRE
 ##########################################################################
-
 if $BUILD_PIPEWIRE ; then
   # MESON
   # Get recent version of Meson (to build pipewire)
@@ -250,6 +264,18 @@ if $BUILD_PIPEWIRE ; then
   echo export PKG_CONFIG_PATH="${pw_dist_dir}/lib/pkgconfig:\${PKG_CONFIG_PATH}" >> ${ENV_FILE}
   echo export LIBRARY_PATH="${pw_dist_dir}/lib:\${LIBRARY_PATH}" >> ${ENV_FILE}
   echo export LD_LIBRARY_PATH="${pw_dist_dir}/lib:\${LD_LIBRARY_PATH}" >> ${ENV_FILE}
+ fi 
+
+##########################################################################
+# Old ssl for crashpad
+##########################################################################
+if [[ "$PACKARCH" == "x86_64" ]]; then
+  origin_dir=$(pwd)
+  mkdir -p $BUILD_TOOLS/ssl1
+  cd $BUILD_TOOLS/ssl1
+  wget http://archive.ubuntu.com/ubuntu/pool/main/o/openssl/libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
+  sudo dpkg -i libssl1.1_1.1.1f-1ubuntu2.24_amd64.deb
+  cd $origin_dir
 fi
 
 ##########################################################################

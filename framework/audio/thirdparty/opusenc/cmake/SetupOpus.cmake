@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # MuseScore-CLA-applies
 #
-# MuseScore
+# MuseScore Studio
 # Music Composition & Notation
 #
 # Copyright (C) 2023 MuseScore Limited and others
@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-if (MUE_COMPILE_USE_SYSTEM_OPUS)
+if (MUSE_USE_SYSTEM_OPUS)
     find_package(Opus)
 
     if (OPUS_FOUND)
@@ -35,7 +35,7 @@ if (MUE_COMPILE_USE_SYSTEM_OPUS)
         return()
     endif ()
 
-    message(WARNING "Set MUE_COMPILE_USE_SYSTEM_OPUS=ON, but system opus not found, built-in will be used")
+    message(WARNING "Set MUSE_USE_SYSTEM_OPUS=ON, but system opus not found, built-in will be used")
 endif ()
 
 set(OPUS_LIB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../opus/opus-1.5.2)

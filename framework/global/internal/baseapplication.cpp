@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  * MuseScore-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
  * Copyright (C) 2021 MuseScore Limited and others
@@ -45,8 +45,8 @@ using namespace muse;
 
 String BaseApplication::appName()
 {
-#ifdef MUSE_APP_NAME
-    return String::fromAscii(MUSE_APP_NAME);
+#ifdef MUSE_APP_NAME_MACHINE_READABLE
+    return String::fromAscii(MUSE_APP_NAME_MACHINE_READABLE);
 #else
     return String();
 #endif
@@ -54,11 +54,11 @@ String BaseApplication::appName()
 
 String BaseApplication::appTitle()
 {
-#ifdef MUSE_APP_TITLE
+#ifdef MUSE_APP_NAME_HUMAN_READABLE
 #ifdef MUSE_APP_UNSTABLE
-    return String::fromAscii(MUSE_APP_TITLE) + u" Development";
+    return String::fromAscii(MUSE_APP_NAME_HUMAN_READABLE) + u" Development";
 #else
-    return String::fromAscii(MUSE_APP_TITLE);
+    return String::fromAscii(MUSE_APP_NAME_HUMAN_READABLE);
 #endif
 #else
     return String();

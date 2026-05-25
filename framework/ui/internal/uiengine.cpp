@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  * MuseScore-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
  * Copyright (C) 2021 MuseScore Limited and others
@@ -76,7 +76,7 @@ void UiEngine::init()
 
     m_engine->addImportPath(":/qml");
 
-#ifdef MUE_ENABLE_LOAD_QML_FROM_SOURCE
+#ifdef MUSE_LOAD_QML_FROM_SOURCE
     for (const QString& path : m_sourceImportPaths) {
         m_engine->addImportPath(path);
     }
@@ -132,7 +132,7 @@ bool UiEngine::isSystemDragSupported() const
 
 void UiEngine::addSourceImportPath(const QString& path)
 {
-#ifdef MUE_ENABLE_LOAD_QML_FROM_SOURCE
+#ifdef MUSE_LOAD_QML_FROM_SOURCE
     LOGD() << path;
     m_sourceImportPaths << path;
     if (m_engine) {

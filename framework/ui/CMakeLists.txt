@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # MuseScore-CLA-applies
 #
-# MuseScore
+# MuseScore Studio
 # Music Composition & Notation
 #
 # Copyright (C) 2021 MuseScore Limited and others
@@ -150,6 +150,10 @@ qt_add_resources(muse_ui "muse_ui_resources"
     FILES
         "data/MusescoreIcon.ttf"
 )
+
+if (MUSE_LOAD_QML_FROM_SOURCE)
+    target_compile_definitions(muse_ui PRIVATE MUSE_LOAD_QML_FROM_SOURCE)
+endif()
 
 if (MUSE_QT_SUPPORT)
     target_link_libraries(muse_ui PRIVATE Qt::Quick Qt::Widgets)

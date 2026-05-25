@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  * MuseScore-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
  * Copyright (C) 2021 MuseScore Limited and others
@@ -444,13 +444,13 @@ void Painter::drawText(const PointF& point, const String& text)
     }
 }
 
-void Painter::drawText(const RectF& rect, int flags, const String& text)
+void Painter::drawText(const RectF& rect, Alignment alignment, TextFlags textFlags, const String& text)
 {
     applyFontSizeScaling();
 
-    m_provider->drawText(rect, flags, text);
+    m_provider->drawText(rect, alignment, textFlags, text);
     if (extended) {
-        extended->drawText(rect, flags, text);
+        extended->drawText(rect, alignment, textFlags, text);
     }
 }
 

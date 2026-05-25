@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-only
  * MuseScore-CLA-applies
  *
- * MuseScore
+ * MuseScore Studio
  * Music Composition & Notation
  *
  * Copyright (C) 2025 MuseScore Limited and others
@@ -586,7 +586,7 @@ Promise<Ret> MuseScoreComService::doUploadScore(DevicePtr scoreData, const QStri
 
     const ID scoreId = idFromCloudUrl(sourceUrl);
 
-    return checkScoreAlreadyUploaded(scoreId).then<Ret>(this, [=](const RetVal<bool>& alreadyUploaded, auto resolve) {
+    return checkScoreAlreadyUploaded(scoreId).then<Ret>(this, [=, this](const RetVal<bool>& alreadyUploaded, auto resolve) {
         if (!alreadyUploaded.ret) {
             return resolve(alreadyUploaded.ret);
         }
