@@ -71,11 +71,11 @@ static KDDockWidgets::Location locationToKLocation(Location location)
     return KDDockWidgets::Location_None;
 }
 
-static void clearRegistry()
+static void clearRegistry(int ctx)
 {
     TRACEFUNC;
 
-    auto* registry = KDDockWidgets::DockRegistry::self();
+    auto* registry = KDDockWidgets::DockRegistry::self(ctx);
 
     for (KDDockWidgets::Core::MainWindow* mw : registry->mainwindows()) {
         mw->layout()->clearLayout();
@@ -139,7 +139,7 @@ void DockWindow::componentComplete()
 
     static const QString name = "mainWindow";
 
-    m_mainWindow = new KDDockWidgets::QtQuick::MainWindow(name,
+    m_mainWindow = new KDDockWidgets::QtQuick::MainWindow(iocContext()->id, name,
                                                           KDDockWidgets::MainWindowOption_None,
                                                           this);
 
@@ -182,7 +182,7 @@ void DockWindow::onQuit()
     savePageState(m_currentPage->objectName());
     m_reloadCurrentPageAllowed = false;
 
-    clearRegistry();
+    clearRegistry(iocContext()->id);
 
     saveWindowGeometry();
 }
@@ -209,7 +209,7 @@ QQuickWindow* DockWindow::windowProperty() const
 
 void DockWindow::init()
 {
-    clearRegistry();
+    clearRegistry(iocContext()->id);
     restoreGeometry();
 
     dockWindowProvider()->init(this);
@@ -242,7 +242,7 @@ void DockWindow::loadPage(const QString& uri, const QVariantMap& params)
         const QString pageName = m_currentPage->objectName();
         uiState()->pageState(pageName).notification.disconnect(this);
         savePageState(pageName);
-        clearRegistry();
+        clearRegistry(iocContext()->id);
         m_currentPage->setVisible(false);
         m_currentPage->deinit();
     }
@@ -433,7 +433,7 @@ void DockWindow::alignTopLevelToolBars(const DockPageView* page)
     int centralToolBarsWidth = 0;
     int rightToolBarsWidth = 0;
 
-    int separatorThickness = KDDockWidgets::Config::self().separatorThickness();
+    int separatorThickness = KDDockWidgets::Config::self(iocContext()->id).separatorThickness();
 
     for (DockToolBarView* toolBar : topToolBars) {
         if (toolBar->floating() || !toolBar->isVisible()) {
@@ -520,7 +520,7 @@ void DockWindow::registerDock(DockBase* dock)
         return;
     }
 
-    auto* registry = KDDockWidgets::DockRegistry::self();
+    auto* registry = KDDockWidgets::DockRegistry::self(iocContext()->id);
     auto* dockWidget = dock->dockWidget();
 
     if (!registry->containsDockWidget(dockWidget->uniqueName())) {
@@ -685,7 +685,7 @@ bool DockWindow::restoreLayout(const QByteArray& layout, bool restoreRelativeToM
     auto option = restoreRelativeToMainWindow ? KDDockWidgets::RestoreOption_RelativeToMainWindow
                   : KDDockWidgets::RestoreOption_None;
 
-    KDDockWidgets::LayoutSaver layoutSaver(option);
+    KDDockWidgets::LayoutSaver layoutSaver(iocContext()->id, option);
     return layoutSaver.restoreLayout(layout);
 }
 
@@ -715,7 +715,7 @@ QByteArray DockWindow::windowState() const
 {
     TRACEFUNC;
 
-    KDDockWidgets::LayoutSaver layoutSaver(KDDockWidgets::RestoreOption_None);
+    KDDockWidgets::LayoutSaver layoutSaver(iocContext()->id, KDDockWidgets::RestoreOption_None);
     return layoutSaver.serializeLayout();
 }
 
@@ -727,7 +727,7 @@ void DockWindow::reloadCurrentPage()
 
     TRACEFUNC;
 
-    clearRegistry();
+    clearRegistry(iocContext()->id);
 
     for (DockBase* dock : m_currentPage->allDocks()) {
         dock->deinit();

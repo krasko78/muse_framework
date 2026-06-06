@@ -30,9 +30,11 @@
 #include "internal/dockwindowprovider.h"
 
 #include "kddockwidgets/src/Config.h"
+#include "kddockwidgets/src/ContextData.h"
 #include "kddockwidgets/src/core/FloatingWindow.h"
 #include "kddockwidgets/src/qtquick/ViewFactory.h"
 #include "kddockwidgets/src/qtquick/Platform.h"
+#include "kddockwidgets/src/qtquick/QmlConfig.h"
 
 #include "modularity/ioc.h"
 #include "ui/iuiengine.h"
@@ -44,7 +46,7 @@ class DockWidgetFactory : public KDDockWidgets::QtQuick::ViewFactory
 {
 public:
     explicit DockWidgetFactory(const modularity::ContextPtr& iocCtx)
-        : m_iocContext(iocCtx) {}
+        : KDDockWidgets::QtQuick::ViewFactory(iocCtx->id), m_iocContext(iocCtx) {}
 
     KDDockWidgets::Core::ClassicIndicatorWindowViewInterface*
     createClassicIndicatorWindow(KDDockWidgets::Core::ClassicDropIndicatorOverlay* classicIndicators,
@@ -146,10 +148,16 @@ void DockContext::onInit(const IApplication::RunMode&)
 
     QQmlEngine* engine = ioc()->resolve<ui::IUiEngine>(module_name)->qmlEngine();
 
-    KDDockWidgets::Config& config = KDDockWidgets::Config::self();
+    const int ctx = iocContext()->id;
+
+    //! NOTE Create new context data
+    KDDockWidgets::ContextData::context(ctx);
+
+    KDDockWidgets::Config& config = KDDockWidgets::Config::self(ctx);
 
     config.setViewFactory(new DockWidgetFactory(iocContext()));
 
+    KDDockWidgets::setCtxForEngine(engine, ctx);
     KDDockWidgets::QtQuick::Platform::instance()->setQmlEngine(engine);
 
     auto flags = config.flags()
@@ -172,4 +180,8 @@ void DockContext::onInit(const IApplication::RunMode&)
 
 void DockContext::onDeinit()
 {
+    const int ctx = iocContext()->id;
+
+    //! NOTE Destroy context data
+    KDDockWidgets::ContextData::destroyContext(ctx);
 }

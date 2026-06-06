@@ -658,7 +658,7 @@ void DockBase::componentComplete()
         content->setObjectName(name + "_content");
     }
 
-    auto* dockWidgetView = new KDDockWidgets::QtQuick::DockWidget(name);
+    auto* dockWidgetView = new KDDockWidgets::QtQuick::DockWidget(iocContext()->id, name);
     dockWidgetView->setObjectName(name);
     m_dockWidget = dockWidgetView->dockWidget();
     dockWidgetView->setGuestItem(content);

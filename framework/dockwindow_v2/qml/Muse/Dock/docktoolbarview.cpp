@@ -47,7 +47,7 @@ class DockToolBarView::DockToolBarDraggable : public KDDockWidgets::Core::Dragga
 {
 public:
     explicit DockToolBarDraggable(KDDockWidgets::Core::DockWidget* dw)
-        : KDDockWidgets::Core::Draggable(dw->view())
+        : KDDockWidgets::Core::Draggable(dw->ctx(), dw->view())
         , m_dockWidget(dw)
     {
     }

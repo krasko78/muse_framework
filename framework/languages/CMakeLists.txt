@@ -38,6 +38,13 @@ target_sources(muse_languages PRIVATE
 
 if (MUSE_QT_SUPPORT)
     target_link_libraries(muse_languages PRIVATE Qt::Concurrent Qt::Gui Qt::Network Qt::Qml)
+
+    qt_add_resources(muse_languages muse_languages_resources
+        PREFIX
+            /languages
+        FILES
+            resources/languages.json
+    )
 endif()
 
 if (MUSE_MODULE_LANGUAGES_TESTS)

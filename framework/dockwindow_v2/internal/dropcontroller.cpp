@@ -409,7 +409,7 @@ DockPageView* DropController::currentPage() const
 
 DockBase* DropController::draggedDock() const
 {
-    auto windowBeingDragged = KDDockWidgets::Core::DragController::instance()->windowBeingDragged();
+    auto windowBeingDragged = KDDockWidgets::Core::DragController::instance(iocContext()->id)->windowBeingDragged();
     if (!windowBeingDragged || windowBeingDragged->dockWidgets().isEmpty()) {
         return nullptr;
     }

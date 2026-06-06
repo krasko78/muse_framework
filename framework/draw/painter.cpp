@@ -525,6 +525,12 @@ const Painter::State& Painter::state() const
 void Painter::updateViewTransform()
 {
     State& st = editableState();
+    if (st.window.isNull()) {
+        st.viewTransform = Transform();
+        updateMatrix();
+        return;
+    }
+
     double scaleW = double(st.viewport.width()) / double(st.window.width());
     double scaleH = double(st.viewport.height()) / double(st.window.height());
     st.viewTransform = Transform(scaleW, 0, 0, scaleH, st.viewport.x() - st.window.x() * scaleW, st.viewport.y() - st.window.y() * scaleH);

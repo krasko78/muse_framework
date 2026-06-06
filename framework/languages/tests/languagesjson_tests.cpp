@@ -30,11 +30,11 @@
 
 using namespace muse;
 
-TEST(Languages_Json, DISABLED_Correctness)
+TEST(Languages_Json, Correctness)
 {
     GlobalInject<io::IFileSystem> fileSystem;
 
-    const io::path_t filePath(muse_languages_test_DATA_ROOT "/../../../../share/locale/languages.json");
+    const io::path_t filePath(MUSE_LANGUAGES_JSON_PATH);
 
     RetVal<ByteArray> data = fileSystem()->readFile(filePath);
     ASSERT_TRUE(data.ret);

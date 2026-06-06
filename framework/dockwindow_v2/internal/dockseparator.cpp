@@ -47,7 +47,7 @@ using namespace muse::dock;
 using namespace KDDockWidgets;
 
 namespace muse::dock {
-static const QObject* findNearestDockView(const DockSeparator* separator)
+static const QObject* findNearestDockView(const DockSeparator* separator, int ctx)
 {
     auto* coreSeparator = static_cast<Core::Separator*>(separator->controller());
     auto* layoutingSeparator = coreSeparator->asLayoutingSeparator();
@@ -77,7 +77,7 @@ static const QObject* findNearestDockView(const DockSeparator* separator)
     }
 
     auto* guest = nearestItem->guest();
-    for (Core::Group* group : DockRegistry::self()->groups()) {
+    for (Core::Group* group : DockRegistry::self(ctx)->groups()) {
         if (group->asLayoutingGuest() == guest) {
             if (group->isEmpty()) {
                 return nullptr;
@@ -92,7 +92,7 @@ static const QObject* findNearestDockView(const DockSeparator* separator)
 }
 
 DockSeparator::DockSeparator(Core::Separator* controller, QQuickItem* parent)
-    : KDDockWidgets::QtQuick::Separator(controller, parent),
+    : KDDockWidgets::QtQuick::Separator(controller, parent), Contextable(muse::iocCtxForQmlObject(this)),
     m_isSeparatorVisible(true)
 {
     QTimer::singleShot(0, this, [this]() {
@@ -107,7 +107,7 @@ DockSeparator::DockSeparator(Core::Separator* controller, QQuickItem* parent)
 
 void DockSeparator::initAvailability()
 {
-    const QObject* dock = findNearestDockView(this);
+    const QObject* dock = findNearestDockView(this, iocContext()->id);
     DockProperties properties = readPropertiesFromObject(dock);
 
     if (properties.isValid()) {

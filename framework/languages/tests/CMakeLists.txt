@@ -28,4 +28,6 @@ set(MODULE_TEST_LINK muse_languages)
 
 set(MODULE_TEST_DATA_ROOT ${CMAKE_CURRENT_LIST_DIR})
 
+set(MODULE_TEST_DEF "MUSE_LANGUAGES_JSON_PATH=\"${MUSE_FRAMEWORK_SRC_PATH}/languages/resources/languages.json\"")
+
 include(SetupGTest)

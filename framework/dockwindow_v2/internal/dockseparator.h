@@ -25,12 +25,14 @@
 
 #include "kddockwidgets/src/qtquick/views/Separator.h"
 
+#include "global/modularity/ioc.h"
+
 namespace KDDockWidgets::Core {
 class Separator;
 }
 
 namespace muse::dock {
-class DockSeparator : public KDDockWidgets::QtQuick::Separator
+class DockSeparator : public KDDockWidgets::QtQuick::Separator, public Contextable
 {
     Q_OBJECT
 
