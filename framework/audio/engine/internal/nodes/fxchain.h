@@ -23,7 +23,9 @@
 #pragma once
 
 #include "chainnode.h"
-#include "fxnode.h"
+#include "audio/engine/ifxprocessor.h"
+#include "audio/engine/iplayhead.h"
+
 #include "async/asyncable.h"
 #include "async/channel.h"
 
@@ -38,11 +40,9 @@ namespace muse::audio::engine {
 class FxChain : public ChainNode<FxChainTag>, public async::Asyncable
 {
 public:
+    void setFxList(const std::vector<IFxProcessorPtr>& fxList);
 
-    void add(FxNodePtr fx);
-    void remove(FxNodePtr fx);
-
-    //! NOTE Must be setted after adding all nodes to the chain
+    //! NOTE Must be set after adding all nodes to the chain
     void setFxChainSpec(const AudioFxChain& fxChainSpec);
     const AudioFxChain& fxChainSpec() const;
     async::Channel<AudioFxChain> fxChainSpecChanged() const;
@@ -53,6 +53,8 @@ public:
     async::Channel<bool> shouldProcessDuringSilenceChanged() const;
 
 private:
+    void rebuild() override;
+    void doSelfProcess(float* buffer, samples_t samplesPerChannel) override;
 
     void updateShouldProcessDuringSilence();
 

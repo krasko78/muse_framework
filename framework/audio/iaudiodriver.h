@@ -27,6 +27,7 @@
 #include <functional>
 #include <memory>
 
+#include "common/audioworkgroup.h"
 #include "global/async/notification.h"
 
 #include "audio/common/audiotypes.h"
@@ -52,6 +53,8 @@ public:
     virtual std::string name() const = 0;
 
     virtual AudioDeviceID defaultDevice() const = 0;
+    virtual AudioWorkGroup getAudioWorkGroup() const { return {}; }
+    virtual async::Notification currentWorkgroupChanged() const { return {}; }
 
     virtual bool open(const Spec& spec, Spec* activeSpec) = 0;
     virtual void close() = 0;

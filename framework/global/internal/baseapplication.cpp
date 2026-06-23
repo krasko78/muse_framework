@@ -386,6 +386,10 @@ void BaseApplication::doDestroyContext(const ContextData& data)
         s->onDeinit();
     }
 
+    for (modularity::IContextSetup* s : data.setups) {
+        s->onDestroy();
+    }
+
     qDeleteAll(data.setups);
 
     modularity::removeIoC(data.ctxId);

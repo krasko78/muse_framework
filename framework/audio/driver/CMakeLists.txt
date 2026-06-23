@@ -85,10 +85,13 @@ elseif(OS_IS_MAC)
     target_sources(muse_audio_driver PRIVATE
         platform/osx/osxaudiodriver.mm
         platform/osx/osxaudiodriver.h
+        platform/osx/osxdirectaudiodriver.mm
+        platform/osx/osxdirectaudiodriver.h
     )
-
+        
     set_source_files_properties(
         platform/osx/osxaudiodriver.mm
+        platform/osx/osxdirectaudiodriver.mm
         PROPERTIES
         SKIP_UNITY_BUILD_INCLUSION ON
         SKIP_PRECOMPILE_HEADERS ON

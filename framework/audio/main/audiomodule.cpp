@@ -21,6 +21,7 @@
  */
 #include "audiomodule.h"
 
+#include "common/iaudiotaskscheduler.h"
 #include "ui/iuiactionsregister.h"
 #include "global/modularity/ioc.h"
 
@@ -87,6 +88,7 @@ void AudioModule::registerExports()
     globalIoc()->registerExport<IAudioThreadSecurer>(mname, std::make_shared<AudioThreadSecurer>());
     globalIoc()->registerExport<rpc::IRpcChannel>(mname, m_rpcChannel);
     globalIoc()->registerExport<IAudioDriverController>(mname, m_audioDriverController);
+    globalIoc()->registerExport<IAudioTaskScheduler>(mname, m_audioDriverController->getAudioTaskScheduler());
     globalIoc()->registerExport<ISoundFontController>(mname, m_soundFontController);
     globalIoc()->registerExport<IStartAudioController>(mname, m_startAudioController);
 }

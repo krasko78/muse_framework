@@ -108,7 +108,7 @@ if [ "$COMPILER" == "gcc" ]; then
   gcc_version="14"
   $SUDO apt install -y --no-install-recommends "g++-${gcc_version}"
 
-  for alt in gcc g++; do
+  for alt in gcc g++ gcov; do
     if update-alternatives --query "$alt" >/dev/null 2>&1; then
       $SUDO update-alternatives --remove-all "$alt"
     fi

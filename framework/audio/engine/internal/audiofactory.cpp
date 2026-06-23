@@ -84,10 +84,8 @@ FxChainPtr AudioFactory::makeMasterFxChain(const AudioFxChain& fxChain) const
     std::vector<IFxProcessorPtr> fxlist = fxResolver()->resolveMasterFxList(fxChain, audioEngine()->outputSpec());
 
     FxChainPtr chain = std::make_shared<FxChain>();
-    for (const auto& fx : fxlist) {
-        chain->add(std::make_shared<FxNode>(fx));
-    }
-
+    chain->setName("FxChain [master]");
+    chain->setFxList(fxlist);
     chain->setFxChainSpec(fxChain);
 
     return chain;
@@ -96,11 +94,14 @@ FxChainPtr AudioFactory::makeMasterFxChain(const AudioFxChain& fxChain) const
 FxChainPtr AudioFactory::makeTrackFxChain(const TrackId trackId, const AudioFxChain& fxChain) const
 {
     std::vector<IFxProcessorPtr> fxlist = fxResolver()->resolveFxList(trackId, fxChain, audioEngine()->outputSpec());
-    FxChainPtr chain = std::make_shared<FxChain>();
-    for (const auto& fx : fxlist) {
-        chain->add(std::make_shared<FxNode>(fx));
-    }
 
+    FxChainPtr chain = std::make_shared<FxChain>();
+    if (trackId == MASTER_TRACK_ID) {
+        chain->setName("FxChain [master]");
+    } else {
+        chain->setName("FxChain [track " + std::to_string(trackId) + "]");
+    }
+    chain->setFxList(fxlist);
     chain->setFxChainSpec(fxChain);
 
     return chain;

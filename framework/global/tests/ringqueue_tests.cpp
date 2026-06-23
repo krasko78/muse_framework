@@ -71,6 +71,10 @@ TEST_F(Global_Concurrency_RingQueueTests, FixedSizeQueue)
             if (successCount == 10) {
                 break;
             }
+            if (successCount == 0) {
+                // simple wait until the producer has added its first item
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
         }
 
         EXPECT_EQ(successCount, 10);

@@ -77,8 +77,13 @@ public:
 
     QQuickWindow* windowProperty() const;
 
+    /* loadPage() is used internally by the InteractiveProvider. Regular code should call
+     * openPage(), to ensure the Interactive's m_openingObject query will be properly set
+     * by the time Interactive::onOpen() is called (from DockWindow>onPageLoaded).
+     */
     Q_INVOKABLE void init();
     Q_INVOKABLE void loadPage(const QString& uri, const QVariantMap& params);
+    Q_INVOKABLE void openPage(const QString& uri);
 
     //! IDockWindow
     bool isDockOpen(const QString& dockName) const override;
@@ -138,6 +143,10 @@ private:
 
     void adjustContentForAvailableSpace(DockPageView* page);
 
+    void applyLayoutSizeToFitWindow();
+    void scheduleDeferredLayoutFix();
+    void runDeferredLayoutFix();
+
     void notifyAboutDocksOpenStatus();
 
     QList<DockToolBarView*> topLevelToolBars(const DockPageView* page) const;
@@ -153,5 +162,8 @@ private:
 
     bool m_hasGeometryBeenRestored = false;
     bool m_reloadCurrentPageAllowed = false;
+
+    bool m_layoutFixScheduled = false;
+    int m_pendingWidth = -1;
 };
 }

@@ -21,6 +21,7 @@
  */
 
 #include "fxchain.h"
+#include "fxnode.h"
 
 #include "log.h"
 
@@ -28,32 +29,27 @@ using namespace muse;
 using namespace muse::audio;
 using namespace muse::audio::engine;
 
-void FxChain::add(FxNodePtr fx)
+void FxChain::setFxList(const std::vector<IFxProcessorPtr>& fxList)
 {
-    IF_ASSERT_FAILED(fx) {
-        return;
+    clear();
+
+    for (auto it = fxList.rbegin(); it != fxList.rend(); ++it) {
+        FxNodePtr node = std::make_shared<FxNode>(*it);
+        doAdd(node);
+
+        node->paramsChanged().onReceive(this, [this](const AudioFxParams& fxParams) {
+            m_fxChainSpec.insert_or_assign(fxParams.chainOrder, fxParams);
+            m_fxChainSpecChanged.send(m_fxChainSpec);
+            updateShouldProcessDuringSilence();
+        }, async::Asyncable::Mode::SetReplace);
     }
 
-    ChainNode<FxChainTag>::add(fx);
-
-    fx->paramsChanged().onReceive(this, [this](const AudioFxParams& fxParams) {
-        m_fxChainSpec.insert_or_assign(fxParams.chainOrder, fxParams);
-        m_fxChainSpecChanged.send(m_fxChainSpec);
-        updateShouldProcessDuringSilence();
-    }, async::Asyncable::Mode::SetReplace);
-
+    rebuild();
     updateShouldProcessDuringSilence();
-}
 
-void FxChain::remove(FxNodePtr fx)
-{
-    IF_ASSERT_FAILED(fx) {
-        return;
+    if (!name().empty() && !m_nodes.empty()) {
+        LOGD() << name() << ": " << m_nodes.front()->dump();
     }
-
-    ChainNode<FxChainTag>::remove(fx);
-
-    fx->paramsChanged().disconnect(this);
 }
 
 void FxChain::setFxChainSpec(const AudioFxChain& fxChainSpec)
@@ -114,6 +110,23 @@ void FxChain::setPlayheadPosition(PlayheadPositionPtr playheadPosition)
         }
 
         fx->setPlayheadPosition(playheadPosition);
+    }
+}
+
+void FxChain::rebuild()
+{
+    for (size_t i = 1; i < m_nodes.size(); ++i) {
+        IAudioNodePtr& prev = m_nodes.at(i - 1);
+        IAudioNodePtr& curr = m_nodes.at(i);
+        curr->disconnectAll();
+        curr->connect(prev); // prev->input = curr
+    }
+}
+
+void FxChain::doSelfProcess(float* buffer, samples_t samplesPerChannel)
+{
+    if (!m_nodes.empty()) {
+        m_nodes.front()->process(buffer, samplesPerChannel);
     }
 }
 

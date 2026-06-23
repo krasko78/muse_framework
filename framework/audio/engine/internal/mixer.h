@@ -24,6 +24,7 @@
 
 #include <memory>
 
+#include "common/iaudiotaskscheduler.h"
 #include "global/modularity/ioc.h"
 #include "global/async/asyncable.h"
 
@@ -35,6 +36,7 @@
 #include "nodes/signalnode.h"
 #include "nodes/trackchain.h"
 
+#include "muse_framework_config.h"
 namespace muse {
 class TaskScheduler;
 }
@@ -50,6 +52,9 @@ namespace muse::audio::engine {
 class Mixer : public AudioNode<ContextMixerTag>, public async::Asyncable
 {
     GlobalInject<IAudioFactory> audioFactory;
+#ifdef MUSE_THREADS_SUPPORT
+    GlobalInject<IAudioTaskScheduler> audioTaskScheduler;
+#endif
 
 public:
     ~Mixer() override;
@@ -84,8 +89,6 @@ private:
 
     bool useMultithreading() const;
 
-    TaskScheduler* m_taskScheduler = nullptr;
-
     struct TrackData {
         TrackId trackId;
         TrackChainPtr chain;
@@ -96,6 +99,8 @@ private:
     std::vector<TrackData> m_tracks;
     std::vector<TrackData> m_auxTracks;
     std::map<TrackId, AuxSendsParams> m_auxSends;
+
+    std::vector<IAudioTaskScheduler::Task> m_trackTasks;
 
     size_t m_nonMutedTrackCount = 0;
     std::unordered_set<TrackId> m_tracksToProcessWhenIdle;

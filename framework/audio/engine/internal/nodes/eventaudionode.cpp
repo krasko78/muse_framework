@@ -159,7 +159,7 @@ void EventAudioNode::applyInputParams(const AudioInputParams& requiredParams)
         m_synth->setMode(ProcessMode::Idle);
     }
 
-    setName(std::string("Source[") + m_synth->name() + "] ");
+    setName(std::string("Source[") + m_synth->name() + "]");
 
     m_params = m_synth->params();
     m_paramsChanges.send(m_params);

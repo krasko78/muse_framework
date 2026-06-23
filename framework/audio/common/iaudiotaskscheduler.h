@@ -1,8 +1,11 @@
 /*
  * SPDX-License-Identifier: GPL-3.0-only
- * MuseScore/Audacity CLA applies
+ * MuseScore-CLA-applies
  *
- * Copyright (C) 2026 MuseScore/Audacity and others
+ * MuseScore
+ * Music Composition & Notation
+ *
+ * Copyright (C) 2026 MuseScore Limited and others
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 3 as
@@ -19,31 +22,19 @@
 
 #pragma once
 
-#include "ircommanddispatcher.h"
+#include "global/modularity/imoduleinterface.h"
+#include "global/functional/inplace_function.h"
+#include <memory>
+#include <vector>
 
-namespace muse::rcommand {
-class RCommandable
+namespace muse::audio {
+class IAudioTaskScheduler : MODULE_GLOBAL_INTERFACE
 {
+    INTERFACE_ID(IAudioTaskScheduler)
 public:
-    virtual ~RCommandable()
-    {
-        if (m_dispatcher) {
-            m_dispatcher->unreg(this);
-        }
-    }
-
-    inline void setDispatcher(IRCommandDispatcher* dispatcher)
-    {
-        m_dispatcher = dispatcher;
-    }
-
-    inline bool isDispatcher(const IRCommandDispatcher* dispatcher) const
-    {
-        return m_dispatcher == dispatcher;
-    }
-
-private:
-
-    IRCommandDispatcher* m_dispatcher = nullptr;
+    using Task = muse::functional::inplace_function<void (), 64>;
+    virtual void submitRealtimeTasksAndWait(const std::vector<Task>& tasks) = 0;
 };
+
+using IAudioTaskSchedulerPtr = std::shared_ptr<IAudioTaskScheduler>;
 }

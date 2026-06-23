@@ -37,4 +37,5 @@ target_sources(muse_audio PRIVATE
     audiodriverstub.h
     audiodrivercontrollerstub.cpp
     audiodrivercontrollerstub.h
+    audioworkgroupstub.cpp
 )

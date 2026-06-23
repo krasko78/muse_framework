@@ -39,6 +39,9 @@ target_sources(muse_global PRIVATE
     logremover.cpp
     logremover.h
     profiler.h
+    signpost.h
+    functional/inplace_function.h
+    functional/inplace_function_mv.h
     dataformatter.cpp
     dataformatter.h
     stringutils.cpp
@@ -70,6 +73,8 @@ target_sources(muse_global PRIVATE
     itickerprovider.h
     ticker.cpp
     ticker.h
+
+    thirdparty/sg14/inplace_function.h
 
     ${KORS_MODULARITY_SRC}
     modularity/ioccontext.cpp

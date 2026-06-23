@@ -47,6 +47,7 @@ public:
     virtual void onInit(const IApplication::RunMode& mode) { (void)mode; }
     virtual void onAllInited(const IApplication::RunMode& mode) { (void)mode; }
     virtual void onDeinit() {}
+    virtual void onDestroy() {}
 
 private:
     ContextPtr m_ctx;

@@ -33,6 +33,13 @@ target_sources(muse_audio_common PRIVATE
     iaudiothreadsecurer.h
     audiothreadsecurer.cpp
     audiothreadsecurer.h
+    audioworkgroup.h
+    audioworkgroup.cpp
+    audiotaskscheduler.h
+    iaudiotaskscheduler.h
+    realtimethreadpool.h
+    concurrentqueue.h
+    lightweightsemaphore.h
     workmode.cpp
     workmode.h
     alignmentbuffer.h

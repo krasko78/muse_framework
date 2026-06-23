@@ -26,12 +26,6 @@
 #include "audio/common/audiosanitizer.h"
 #include "audio/common/audioerrors.h"
 
-#include "muse_framework_config.h"
-
-#ifdef MUSE_THREADS_SUPPORT
-#include "concurrency/taskscheduler.h"
-#endif
-
 #include "log.h"
 
 using namespace muse;
@@ -44,22 +38,11 @@ constexpr size_t MIN_TRACK_COUNT_FOR_MULTITHREADING = 2;
 Mixer::~Mixer()
 {
     ONLY_AUDIO_MAIN_OR_ENGINE_THREAD;
-    delete m_taskScheduler;
 }
 
 void Mixer::init()
 {
     ONLY_AUDIO_ENGINE_THREAD;
-
-#ifdef MUSE_THREADS_SUPPORT
-    m_taskScheduler = new TaskScheduler();
-
-    if (!m_taskScheduler->setThreadsPriority(ThreadPriority::High)) {
-        LOGE() << "Unable to change audio threads priority";
-    }
-
-    AudioSanitizer::setMixerThreads(m_taskScheduler->threadIdSet());
-#endif
 }
 
 Ret Mixer::addTrack(TrackChainPtr trackChain, const AuxSendsParams& auxSends)
@@ -72,6 +55,7 @@ Ret Mixer::addTrack(TrackChainPtr trackChain, const AuxSendsParams& auxSends)
     trackData.buffer.resize(outBufferSize);
 
     m_tracks.emplace_back(std::move(trackData));
+    m_trackTasks.reserve(m_tracks.size());
 
     setAuxSends(trackData.trackId, auxSends);
 
@@ -179,7 +163,8 @@ void Mixer::process(float* outBuffer, samples_t samplesPerChannel)
     processAuxChannels(outBuffer, samplesPerChannel);
 }
 
-void Mixer::processTrackChannels(size_t outBufferSize, size_t samplesPerChannel)
+void Mixer::processTrackChannels(size_t outBufferSize,
+                                 size_t samplesPerChannel)
 {
     auto processChannel = [outBufferSize, samplesPerChannel](TrackData& trackData) {
         IF_ASSERT_FAILED(trackData.chain) {
@@ -199,8 +184,7 @@ void Mixer::processTrackChannels(size_t outBufferSize, size_t samplesPerChannel)
 
 #ifdef MUSE_THREADS_SUPPORT
     if (useMultithreading()) {
-        std::vector<std::future<void> > futures;
-
+        m_trackTasks.clear();
         for (auto& t : m_tracks) {
             t.processed = false;
 
@@ -208,13 +192,11 @@ void Mixer::processTrackChannels(size_t outBufferSize, size_t samplesPerChannel)
                 continue;
             }
 
-            std::future<void> future = m_taskScheduler->submit(processChannel, std::ref(t));
-            futures.emplace_back(std::move(future));
+            m_trackTasks.emplace_back([tPtr = &t, processChannel] {
+                processChannel(*tPtr);
+            });
         }
-
-        for (auto& f : futures) {
-            f.wait();
-        }
+        audioTaskScheduler()->submitRealtimeTasksAndWait(m_trackTasks);
     } else
 #endif
     {

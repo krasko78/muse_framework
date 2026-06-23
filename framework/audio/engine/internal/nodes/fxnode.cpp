@@ -31,7 +31,7 @@ FxNode::FxNode(IFxProcessorPtr fxProcessor, PlayheadPositionPtr playheadPosition
 {
     assert(m_fxProcessor && "FxNode requires a non-null IFxProcessor");
 
-    setName(std::string("Fx[") + m_fxProcessor->name() + "] ");
+    setName(std::string("Fx[") + m_fxProcessor->name() + "]");
 }
 
 void FxNode::setPlayheadPosition(PlayheadPositionPtr playheadPosition)

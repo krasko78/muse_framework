@@ -119,7 +119,7 @@ function(muse_create_module target_name)
     if (NOT arg_NO_COVERAGE AND MUSE_ENABLE_UNIT_TESTS_CODE_COVERAGE)
         set(COVERAGE_FLAGS -fprofile-arcs -ftest-coverage --coverage)
         target_compile_options(${target_name} PRIVATE ${COVERAGE_FLAGS})
-        target_link_options(${target_name} PRIVATE -lgcov --coverage -fprofile-arcs -ftest-coverage)
+        target_link_options(${target_name} PRIVATE --coverage -fprofile-arcs -ftest-coverage)
     endif()
 
     # Link with global module

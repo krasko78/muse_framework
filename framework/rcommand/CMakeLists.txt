@@ -1,10 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# MuseScore-Studio-CLA-applies
+# MuseScore/Audacity CLA applies
 #
-# MuseScore Studio
-# Music Composition & Notation
-#
-# Copyright (C) 2026 MuseScore Limited and others
+# Copyright (C) MuseScore/Audacity and others
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 3 as
@@ -23,13 +20,25 @@ muse_create_module(muse_rcommand ALIAS muse::rcommand)
 target_sources(muse_rcommand PRIVATE
     rcommandmodule.cpp
     rcommandmodule.h
-    ircommanddispatcher.h
-    rcommandable.h
-    rcommandtypes.h
+    icommanddispatcher.h
+    icommandsregister.h
+    imodulecommandsregister.h
+    icommandsstate.h
+    imodulecommandsstate.h
+    commandable.h
+    commandtypes.h
 
-    internal/rcommanddispatcher.cpp
-    internal/rcommanddispatcher.h
+    internal/commanddispatcher.cpp
+    internal/commanddispatcher.h
+    internal/commandsregister.cpp
+    internal/commandsregister.h
+    internal/commandsstate.cpp
+    internal/commandsstate.h
 )
+
+if (MUSE_MODULE_RCOMMAND_QML)
+    add_subdirectory(qml/Muse/RCommand)
+endif()
 
 #if (MUSE_MODULE_RCOMMAND_TESTS)
 #    add_subdirectory(tests)

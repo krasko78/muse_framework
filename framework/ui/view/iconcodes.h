@@ -354,6 +354,8 @@ enum class Code : char16_t {
     DIMINUENDO = 0xF414,
     CRESCENDO = 0xF415,
 
+    IBEAM = 0xF418,
+
     MICROPHONE = 0xF41B,
 
     APP_MINIMIZE = 0xF41C,
@@ -419,7 +421,7 @@ enum class Code : char16_t {
 
     REST_8TH = 0xF44C,
     CIRCLE = 0xF44D,
-
+    TWO_CIRCLES = 0xF44E,
     SHARE_AUDIO = 0xF44F,
 
     DYNAMIC_CENTER_1 = 0xF451,

@@ -30,6 +30,7 @@ SOFTWARE.
 #include <cassert>
 #include <iostream>
 #include <functional>
+#include <mutex>
 
 #include "imoduleinterface.h"
 
@@ -138,15 +139,18 @@ public:
 
     void reset()
     {
-        for (auto& s : m_map) {
-            Service& inj = s.second;
-            inj.p = nullptr;
+        std::map<std::string_view, Service > copy;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            copy = m_map;
+            m_map.clear();
+        }
 
-            for (const auto& c : inj.onChanges) {
-                c.second(inj.p);
+        for (auto& s : copy) {
+            for (const auto& c : s.second.onChanges) {
+                c.second(nullptr);
             }
         }
-        m_map.clear();
     }
 
     ModulesIoCBase() = default;
@@ -155,16 +159,20 @@ protected:
 
     void unregisterService(const InterfaceInfo& info)
     {
-        auto it = m_map.find(info.id);
-        if (it == m_map.end()) {
-            return;
+        std::map<int, OnChangedInternal> onChanges;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            auto it = m_map.find(info.id);
+            if (it == m_map.end()) {
+                return;
+            }
+
+            it->second.p = nullptr;
+            onChanges = it->second.onChanges;
         }
 
-        Service& inj = it->second;
-        inj.p = nullptr;
-
-        for (const auto& c : inj.onChanges) {
-            c.second(inj.p);
+        for (const auto& c : onChanges) {
+            c.second(nullptr);
         }
     }
 
@@ -177,25 +185,31 @@ protected:
             return;
         }
 
-        auto foundIt = m_map.find(info.id);
-        if (foundIt != m_map.end()) {
-            Service& inj = foundIt->second;
-            if (inj.p) {
-                std::cerr << module << ": double register:"
-                          << info.id << ", first register in" << m_map[info.id].sourceModule << std::endl;
-                assert(false);
+        std::map<int, OnChangedInternal> onChanges;
+        {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            auto foundIt = m_map.find(info.id);
+            if (foundIt != m_map.end()) {
+                Service& inj = foundIt->second;
+                if (inj.p) {
+                    std::cerr << module << ": double register:"
+                              << info.id << ", first register in" << m_map[info.id].sourceModule << std::endl;
+                    assert(false);
+                } else {
+                    inj.sourceModule = module;
+                    inj.p = p;
+                    onChanges = inj.onChanges;
+                }
             } else {
+                Service inj;
                 inj.sourceModule = module;
                 inj.p = p;
-                for (const auto& c : inj.onChanges) {
-                    c.second(inj.p);
-                }
+                m_map[info.id] = inj;
             }
-        } else {
-            Service inj;
-            inj.sourceModule = module;
-            inj.p = p;
-            m_map[info.id] = inj;
+        }
+
+        for (const auto& c : onChanges) {
+            c.second(p);
         }
     }
 
@@ -203,7 +217,7 @@ protected:
                                                          const InterfaceInfo& info)
     {
         //! TODO add statistics collection / monitoring, who resolves what
-
+        std::lock_guard<std::mutex> lock(m_mutex);
         auto it = m_map.find(info.id);
         if (it == m_map.end()) {
             return nullptr;
@@ -215,6 +229,7 @@ protected:
     using OnChangedInternal = std::function<void (const std::shared_ptr<IModuleInterface>&)>;
     int doSubscribe(const InterfaceInfo& info, const OnChangedInternal& onChanged)
     {
+        std::lock_guard<std::mutex> lock(m_mutex);
         auto it = m_map.find(info.id);
         if (it == m_map.end()) {
             return -1;
@@ -229,6 +244,7 @@ protected:
 
     void doUnsubscribe(const InterfaceInfo& info, int key)
     {
+        std::lock_guard<std::mutex> lock(m_mutex);
         auto it = m_map.find(info.id);
         if (it == m_map.end()) {
             return;
@@ -266,6 +282,7 @@ protected:
         };
     }
 
+    std::mutex m_mutex;
     std::map<std::string_view, Service > m_map;
     std::shared_ptr<bool> m_alive = std::make_shared<bool>(true);
 };

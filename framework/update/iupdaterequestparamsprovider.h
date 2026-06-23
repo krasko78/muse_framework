@@ -19,29 +19,20 @@
 
 #pragma once
 
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "modularity/imoduleinterface.h"
 
-#include "global/async/promise.h"
-
-#include "rcommandtypes.h"
-
-namespace muse::rcommand {
-class RCommandable;
-class IRCommandDispatcher : MODULE_CONTEXT_INTERFACE
+namespace muse::update {
+class IUpdateRequestParamsProvider : MODULE_GLOBAL_INTERFACE
 {
-    INTERFACE_ID(IRCommandDispatcher)
+    INTERFACE_ID(IUpdateRequestParamsProvider)
+
 public:
-    virtual ~IRCommandDispatcher() = default;
+    virtual ~IUpdateRequestParamsProvider() = default;
 
-    using CallBack = std::function<Response (const Request& request)>;
-
-    virtual async::Promise<Response> dispatch(const Request& request) = 0;
-    virtual void onRequest(RCommandable* client, const Command& command, const CallBack& callback) = 0;
-    virtual void unreg(RCommandable* client) = 0;
-
-    async::Promise<Response> dispatch(const CommandQuery& query)
-    {
-        return dispatch(make_request(query));
-    }
+    virtual std::vector<std::pair<std::string, std::string> > updateRequestParams() const = 0;
 };
 }

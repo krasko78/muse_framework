@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "common/iaudiotaskscheduler.h"
 #include "global/async/asyncable.h"
 
 #include "audio/iaudiodrivercontroller.h"
@@ -37,6 +38,7 @@ class AudioDriverController : public IAudioDriverController, public async::Async
     GlobalInject<rpc::IRpcChannel> rpcChannel;
 
 public:
+    AudioDriverController();
 
     std::vector<std::string> availableAudioDrivers() const override;
 
@@ -67,6 +69,8 @@ public:
     void changeSampleRate(sample_rate_t sampleRate) override;
     async::Notification outputDeviceSampleRateChanged() const override;
 
+    IAudioTaskSchedulerPtr getAudioTaskScheduler() const;
+
 private:
     IAudioDriverPtr createDriver(const std::string& name) const;
     void setNewDriver(IAudioDriverPtr newDriver);
@@ -77,6 +81,7 @@ private:
     void updateOutputSpec();
 
     IAudioDriver::Callback m_callback;
+    IAudioTaskSchedulerPtr m_audioTaskScheduler;
     IAudioDriverPtr m_audioDriver;
     async::Notification m_currentAudioDriverChanged;
     async::Notification m_availableOutputDevicesChanged;
