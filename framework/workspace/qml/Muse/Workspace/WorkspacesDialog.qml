@@ -31,6 +31,8 @@ import "internal"
 StyledDialogView {
     id: root
 
+    title: qsTrc("workspace", "Edit workspaces")
+
     contentWidth: 664
     contentHeight: 558
     resizable: true

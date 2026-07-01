@@ -158,12 +158,14 @@ void DockWindow::geometryChange(const QRectF& newGeometry, const QRectF& oldGeom
     const bool widthChanged = m_currentPage && !qFuzzyCompare(newGeometry.width(), oldGeometry.width());
     const bool shrinking = widthChanged && newGeometry.width() < oldGeometry.width();
 
-    if (shrinking) {
+    if (widthChanged) {
         m_pendingWidth = int(newGeometry.width());
 
-        //! NOTE: Unpin the paddings first so compact mode can actually shrink the toolbars' content
-        for (DockToolBarView* toolBar : topLevelToolBars(m_currentPage)) {
-            toolBar->setMinimumWidth(toolBar->contentWidth());
+        if (shrinking) {
+            //! NOTE: Unpin the paddings first so compact mode can actually shrink the toolbars' content
+            for (DockToolBarView* toolBar : topLevelToolBars(m_currentPage)) {
+                toolBar->setMinimumWidth(toolBar->contentWidth());
+            }
         }
 
         adjustContentForAvailableSpace(m_currentPage);
@@ -180,13 +182,6 @@ void DockWindow::geometryChange(const QRectF& newGeometry, const QRectF& oldGeom
     }
 
     QQuickItem::geometryChange(newGeometry, oldGeometry);
-
-    if (!widthChanged || shrinking) {
-        return;
-    }
-
-    adjustContentForAvailableSpace(m_currentPage);
-    alignTopLevelToolBars(m_currentPage);
 }
 
 void DockWindow::applyLayoutSizeToFitWindow()
@@ -877,7 +872,7 @@ void DockWindow::initDocks(DockPageView* page)
 
     for (DockToolBarView* toolbar : topLevelToolBars(page)) {
         connect(toolbar, &DockToolBarView::floatingChanged,
-                holder, &UniqueConnectionHolder::alignTopLevelToolBars, Qt::UniqueConnection);
+                this, &DockWindow::scheduleDeferredLayoutFix, Qt::UniqueConnection);
 
         connect(toolbar, &DockToolBarView::contentSizeChanged,
                 holder, &UniqueConnectionHolder::alignTopLevelToolBars, Qt::UniqueConnection);

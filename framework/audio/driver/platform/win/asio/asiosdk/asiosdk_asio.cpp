@@ -21,4 +21,4 @@
  */
 
 #undef UNICODE
-#include "ASIOSDK/common/asio.cpp"
+#include "common/asio.cpp"

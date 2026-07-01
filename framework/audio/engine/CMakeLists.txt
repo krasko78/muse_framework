@@ -34,7 +34,7 @@ else()
     target_sources(muse_audio_engine PRIVATE
         enginesetup.cpp
         enginesetup.h
-        
+
         iaudioengineconfiguration.h
         ienginecontroller.h
         iaudiosource.h
@@ -206,49 +206,15 @@ if (MUSE_MODULE_AUDIO_EXPORT)
         internal/export/aacencoder.cpp
         internal/export/aacencoder.h
     )
-    if(MUSE_USE_SYSTEM_LAME)
-        set(MUSE_LAME_INCLUDE_DIR "" CACHE PATH "Path to directory containing lame/lame.h (optional)")
-        set(MUSE_LAME_LIB_DIR     "" CACHE PATH "Path to directory containing libmp3lame (optional)")
-        find_path(LAME_INCLUDE_DIR
-            NAMES lame/lame.h
-            HINTS "${MUSE_LAME_INCLUDE_DIR}"
-        )
-        find_library(LAME_LIBRARY
-            NAMES mp3lame
-            HINTS "${MUSE_LAME_LIB_DIR}"
-        )
-        if(NOT LAME_INCLUDE_DIR)
-            message(FATAL_ERROR "System lame: could not find lame/lame.h. "
-                "Set MUSE_LAME_INCLUDE_DIR to the directory that contains lame/lame.h.")
-        endif()
-        if(NOT LAME_LIBRARY)
-            message(FATAL_ERROR "System lame: could not find libmp3lame. "
-                "Set MUSE_LAME_LIB_DIR to the directory that contains libmp3lame.")
-        endif()
-        message(STATUS "Using system lame: ${LAME_LIBRARY} (headers: ${LAME_INCLUDE_DIR})")
-        target_include_directories(muse_audio_engine PRIVATE "${LAME_INCLUDE_DIR}")
-        target_link_libraries(muse_audio_engine PRIVATE "${LAME_LIBRARY}")
-        target_compile_definitions(muse_audio_engine PRIVATE SYSTEM_LAME)
-    else()
-        add_subdirectory(../thirdparty/lame lame EXCLUDE_FROM_ALL)
-        target_link_libraries(muse_audio_engine PRIVATE lame)
-    endif()
 
-    include(../cmake/SetupOpusEnc.cmake)
-    target_link_libraries(muse_audio_engine PRIVATE ${LIBOPUSENC_TARGETS})
+    target_link_libraries(muse_audio_engine PRIVATE libmp3lame::libmp3lame)
+    target_compile_definitions(muse_audio_engine PRIVATE SYSTEM_LAME)
 
-    include(../cmake/SetupFlac.cmake)
-    target_link_libraries(muse_audio_engine PRIVATE ${FLAC_TARGETS})
+    target_link_libraries(muse_audio_engine PRIVATE opusenc::opusenc Opus::opus)
 
-    target_link_libraries(muse_audio_engine PRIVATE fdk-aac)
+    target_link_libraries(muse_audio_engine PRIVATE FLAC::FLAC FLAC::FLAC++)
 
-    get_property(fdk_aac_src_dir GLOBAL PROPERTY fdk-aac_SOURCE_DIR)
-    target_include_directories(muse_audio_engine SYSTEM PRIVATE
-        ${fdk_aac_src_dir}
-        ${fdk_aac_src_dir}/libAACdec/include
-        ${fdk_aac_src_dir}/libAACenc/include
-        ${fdk_aac_src_dir}/libSYS/include
-    )
+    target_link_libraries(muse_audio_engine PRIVATE fdk-aac::fdk-aac)
 endif() # MUSE_MODULE_AUDIO_EXPORT
 
 target_link_libraries(muse_audio_engine PRIVATE muse_audio_common)

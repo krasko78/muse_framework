@@ -1,14 +1,14 @@
+# Generates breakpad symbols for the built app and uploads them to sentry.
+
 set(HERE ${CMAKE_CURRENT_LIST_DIR})
 
 # Options for generate
 set(APP_BIN "" CACHE STRING "Path to app binary")
-set(ARCH "" CACHE STRING "System architecture")
 set(GENERATE_ARCHS "" CACHE STRING "Generate symbols for architectures")
 set(BUILD_DIR "${CMAKE_SOURCE_DIR}/build.release" CACHE STRING "Path to build directory")
 
 set(CONFIG
     -DAPP_BIN=${APP_BIN}
-    -DARCH=${ARCH}
     -DGENERATE_ARCHS=${GENERATE_ARCHS}
     -DBUILD_DIR=${BUILD_DIR}
 )
@@ -41,5 +41,5 @@ execute_process(
 )
 
 if(result)
-    message(FATAL_ERROR "Failed to generate and upload symbols, exit code: ${result}")
+    message(FATAL_ERROR "Failed to upload symbols, exit code: ${result}")
 endif()

@@ -24,10 +24,10 @@
 #include "global/async/notification.h"
 
 #undef UNICODE
-#include "ASIOSDK/common/asiosys.h"
-#include "ASIOSDK/common/asio.h"
-#include "ASIOSDK/common/iasiodrv.h"
-#include "ASIOSDK/host/asiodrivers.h"
+#include "common/asiosys.h"
+#include "common/asio.h"
+#include "common/iasiodrv.h"
+#include "host/asiodrivers.h"
 
 #include "log.h"
 

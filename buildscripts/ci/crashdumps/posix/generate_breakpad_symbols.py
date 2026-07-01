@@ -3,7 +3,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 #
-# Modified 2020 MuseScore Limited  
+# Modified 2020 MuseScore Limited
 # Added option --dumpsyms-bin
 # Added option --arch
 
@@ -32,6 +32,8 @@ if sys.platform == 'win32':
   # TODO(crbug.com/1190269) - we can't use more than 56
   # cores on Windows or Python3 may hang.
   CONCURRENT_TASKS = min(CONCURRENT_TASKS, 56)
+
+_mac_rpaths_by_binary = {}
 
 # The BINARY_INFO tuple describes a binary as dump_syms identifies it.
 BINARY_INFO = collections.namedtuple('BINARY_INFO',
@@ -140,7 +142,7 @@ def GetDeveloperDirMac():
   print('WARNING: no value found for DEVELOPER_DIR. Some commands may fail.')
 
 
-def GetSharedLibraryDependenciesMac(binary, exe_path):
+def GetSharedLibraryDependenciesMac(binary, exe_path, extra_rpaths=()):
   """Return absolute paths to all shared library dependencies of the binary.
 
   This implementation assumes that we're running on a Mac system."""
@@ -154,6 +156,7 @@ def GetSharedLibraryDependenciesMac(binary, exe_path):
   #    string, causing "@loader_path/foo" to incorrectly expand to "/foo".
   loader_path = os.path.dirname(os.path.realpath(binary))
   env = os.environ.copy()
+  global _mac_rpaths_by_binary
 
   SRC_ROOT_PATH = os.path.join(os.path.dirname(__file__), '../../../..')
   hermetic_otool_path = os.path.join(
@@ -183,10 +186,11 @@ def GetSharedLibraryDependenciesMac(binary, exe_path):
       m = re.match(r' *name (.*) \(offset .*\)$', otool[idx+2])
       dylib_id = m.group(1)
   # `man dyld` says that @rpath is resolved against a stack of LC_RPATHs from
-  # all executable images leading to the load of the current module. This is
-  # intentionally not implemented here, since we require that every .dylib
-  # contains all the rpaths it needs on its own, without relying on rpaths of
-  # the loading executables.
+  # all executable images leading to the load of the current module.
+  # we are replicating this process, because our prebuilt libraries are relocatable
+  # and don't have LC_RPATH of their own
+  _mac_rpaths_by_binary[os.path.realpath(binary)] = list(rpaths)
+  rpaths.extend(extra_rpaths)
 
   otool = subprocess.check_output(
       [otool_path, '-Lm', binary], env=env).decode('utf-8').splitlines()
@@ -219,7 +223,7 @@ def GetSharedLibraryDependenciesChromeOS(binary):
   return _GetSharedLibraryDependenciesAndroidOrChromeOS(binary)
 
 
-def GetSharedLibraryDependencies(options, binary, exe_path):
+def GetSharedLibraryDependencies(options, binary, exe_path, extra_rpaths=()):
   """Return absolute paths to all shared library dependencies of the binary."""
   deps = []
   if options.platform == 'linux':
@@ -227,7 +231,7 @@ def GetSharedLibraryDependencies(options, binary, exe_path):
   elif options.platform == 'android':
     deps = GetSharedLibraryDependenciesAndroid(binary)
   elif options.platform == 'darwin':
-    deps = GetSharedLibraryDependenciesMac(binary, exe_path)
+    deps = GetSharedLibraryDependenciesMac(binary, exe_path, extra_rpaths)
   elif options.platform == 'chromeos':
     deps = GetSharedLibraryDependenciesChromeOS(binary)
   else:
@@ -257,8 +261,12 @@ def GetTransitiveDependencies(options):
         options.platform == 'chromeos'):
     binaries = set([binary])
     q = [binary]
+    extra_rpaths = []
     while q:
-      deps = GetSharedLibraryDependencies(options, q.pop(0), exe_path)
+      item = q.pop(0)
+      deps = GetSharedLibraryDependencies(options, item, exe_path, extra_rpaths)
+      if options.platform == 'darwin' and item == binary:
+        extra_rpaths = _mac_rpaths_by_binary.get(os.path.realpath(binary), [])
       new_deps = set(deps) - binaries
       binaries |= new_deps
       q.extend(list(new_deps))

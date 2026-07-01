@@ -228,7 +228,8 @@ void WorkspaceListModel::resetWorkspace(int workspaceIndex)
     auto promise = interactive()->warning(muse::trc("workspace", "Resetting workspaces"), question, {
         IInteractive::ButtonData(resetButton, muse::trc("workspace", "Reset workspace"), true, false, IInteractive::ButtonRole::AcceptRole),
         interactive()->buttonData(IInteractive::Button::Cancel)
-    });
+    }, int(IInteractive::Button::NoButton), { IInteractive::WithIcon },
+                                          muse::trc("workspace", "Reset workspace"));
 
     promise.onResolve(this, [this, resetButton, workspaceIndex](const IInteractive::Result& res) {
         if (res.isButton(resetButton)) {

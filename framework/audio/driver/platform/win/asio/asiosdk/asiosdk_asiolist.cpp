@@ -21,4 +21,4 @@
  */
 
 #undef UNICODE
-#include "ASIOSDK/host/pc/asiolist.cpp"
+#include "host/pc/asiolist.cpp"

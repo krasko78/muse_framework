@@ -21,4 +21,4 @@
  */
 
 #undef UNICODE
-#include "ASIOSDK/host/asiodrivers.cpp"
+#include "host/asiodrivers.cpp"

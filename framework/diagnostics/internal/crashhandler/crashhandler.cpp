@@ -24,9 +24,9 @@
 
 #include <QDir>
 
-#include <thirdparty/google_crashpad_client/client/crashpad_client.h>
-#include <thirdparty/google_crashpad_client/client/crash_report_database.h>
-#include <thirdparty/google_crashpad_client/client/settings.h>
+#include <client/crashpad_client.h>
+#include <client/crash_report_database.h>
+#include <client/settings.h>
 
 #include "log.h"
 

@@ -26,7 +26,7 @@
 
 #define PICOJSON_USE_LOCALE 1
 #define PICOJSON_ASSERT assert
-#include "../thirdparty/picojson/picojson.h"
+#include "picojson.h"
 
 #include "log.h"
 

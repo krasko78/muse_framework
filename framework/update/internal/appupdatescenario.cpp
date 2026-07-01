@@ -179,7 +179,9 @@ Promise<Ret> AppUpdateScenario::showReleaseInfo(const ReleaseInfo& info)
 Promise<IInteractive::Result> AppUpdateScenario::showServerErrorMsg()
 {
     return interactive()->error(muse::trc("update", "Cannot connect to server"),
-                                muse::trc("update", "Sorry - please try again later"));
+                                muse::trc("update", "Sorry - please try again later"),
+                                {}, int(IInteractive::Button::NoButton), { IInteractive::WithIcon },
+                                muse::trc("update", "Check for update"));
 }
 
 Promise<Ret> AppUpdateScenario::downloadRelease()

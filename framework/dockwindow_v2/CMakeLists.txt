@@ -46,6 +46,9 @@ target_sources(muse_dockwindow PRIVATE
 ###########################################
 # Setup the KDDockWidgets lib
 ###########################################
+
+kddockwidgets_add_to_build()
+
 target_link_libraries(muse_dockwindow PRIVATE kddockwidgets)
 
 get_property(kddockwidgets_src_dir GLOBAL PROPERTY kddockwidgets_SOURCE_DIR)

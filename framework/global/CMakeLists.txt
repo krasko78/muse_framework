@@ -157,29 +157,8 @@ target_sources(muse_global PRIVATE
     serialization/xmldom.cpp
     serialization/xmldom.h
 )
-if (MUSE_USE_SYSTEM_PUGIXML)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(pugixml REQUIRED IMPORTED_TARGET pugixml)
-    target_link_libraries(muse_global PRIVATE PkgConfig::pugixml)
-    target_include_directories(muse_global PRIVATE ${pugixml_INCLUDE_DIRS})
-else()
-    target_sources(muse_global PRIVATE
-        thirdparty/pugixml/pugixml.hpp
-        thirdparty/pugixml/pugixml.cpp
-    )
-    target_include_directories(muse_global PRIVATE thirdparty/pugixml)
-endif()
 
-if (MUSE_USE_SYSTEM_UTF8CPP)
-    find_package(utf8cpp REQUIRED CONFIG)
-    get_target_property(UTFCPP_INC utf8::cpp INTERFACE_INCLUDE_DIRECTORIES)
-    message(STATUS "Using system utf8cpp from ${UTFCPP_INC}")
-    target_link_libraries(muse_global PRIVATE utf8::cpp)
-else()
-    include(thirdparty/utfcpp/utfcpp.cmake)
-    target_sources(muse_global PRIVATE ${UTFCPP_SRC})
-    target_include_directories(muse_global PRIVATE "thirdparty/utfcpp")
-endif()
+target_link_libraries(muse_global PRIVATE pugixml utfcpp)
 
 if (MUSE_THREADS_SUPPORT)
     target_sources(muse_global PRIVATE
@@ -260,18 +239,12 @@ else()
 endif()
 
 include(GetCompilerInfo)
-set(Z_LIB )
-if (CC_IS_MSVC)
-    include(FindZlibStatic)
-    target_link_libraries(muse_global PRIVATE zlibstat)
-    target_include_directories(muse_global PRIVATE ${DEPENDENCIES_INC}/zlib)
-elseif (CC_IS_EMCC)
-    #zlib included in main linker
-else ()
-    target_link_libraries(muse_global PRIVATE z)
-endif ()
+if (NOT CC_IS_EMCC) #zlib included in main linker
+    target_link_libraries(muse_global PRIVATE zlib::zlib)
+endif()
 
-target_include_directories(muse_global PRIVATE thirdparty/pugixml)
+get_property(_picojson GLOBAL PROPERTY picojson_SOURCE_DIR)
+target_include_directories(muse_global PRIVATE ${_picojson}/picojson)
 
 if (MUSE_QT_SUPPORT)
     # These are needed by so many modules, that we make them public here,

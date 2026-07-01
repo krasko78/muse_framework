@@ -86,6 +86,7 @@ TabButton {
         text: root.text
         font: root.font
         opacity: 0.75
+        displayTruncatedTextOnHover: true
     }
 
     background: Item {
