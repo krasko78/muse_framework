@@ -56,19 +56,11 @@ elseif(OS_IS_LIN OR OS_IS_FBSD)
     target_link_libraries(muse_audio_driver PRIVATE ALSA::ALSA pthread)
 
     if (MUSE_MODULE_AUDIO_PIPEWIRE)
-        find_package(PkgConfig)
-        pkg_check_modules(PipeWire libpipewire-0.3)
-        if (PipeWire_FOUND)
-            message(STATUS "Found Pipewire: ${PipeWire_LIBRARIES}")
-            target_sources(muse_audio_driver PRIVATE
-                platform/lin/pwaudiodriver.cpp
-                platform/lin/pwaudiodriver.h
-            )
-            target_include_directories(muse_audio_driver PRIVATE ${PipeWire_INCLUDE_DIRS})
-            target_link_libraries(muse_audio_driver PRIVATE ${PipeWire_LIBRARIES})
-        else()
-            message(WARNING "Pipewire development files not found.\nPipewire support is disabled from the build.")
-        endif()
+        target_sources(muse_audio_driver PRIVATE
+            platform/lin/pwaudiodriver.cpp
+            platform/lin/pwaudiodriver.h
+        )
+        target_link_libraries(muse_audio_driver PRIVATE PipeWire::PipeWire)
     endif()
 
     if (MUSE_MODULE_AUDIO_JACK)

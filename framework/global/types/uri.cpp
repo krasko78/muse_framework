@@ -197,16 +197,15 @@ void UriQuery::parseParams(const std::string& uri, Params& out) const
     strings::split(paramsStr, paramsPairs, "&");
 
     for (const std::string& pair : paramsPairs) {
-        std::vector<std::string> param;
-        strings::split(pair, param, "=");
-        if (param.size() != 2) {
+        size_t eqPos = pair.find('=');
+        if (eqPos == std::string::npos) {
             LOGE() << "Invalid param: " << pair << ", in uri: " << uri;
             continue;
         }
-        std::string key = param.at(0);
+        std::string key = pair.substr(0, eqPos);
         strings::trim(key);
 
-        std::string val = param.at(1);
+        std::string val = pair.substr(eqPos + 1);
 
         //! NOTE Val is bool?
         if (URI_VAL_TRUE == val || URI_VAL_FALSE == val) {
@@ -305,6 +304,20 @@ UriQuery& UriQuery::set(const std::string& key, const Val& val)
 {
     m_params[key] = val;
     return *this;
+}
+
+UriQuery UriQuery::set(const ValMap& vals) const
+{
+    UriQuery copy(*this);
+    copy.set(vals);
+    return copy;
+}
+
+UriQuery UriQuery::set(const std::string& key, const Val& val) const
+{
+    UriQuery copy(*this);
+    copy.set(key, val);
+    return copy;
 }
 
 UriQuery UriQuery::addingParam(const std::string& key, const Val& val) const

@@ -65,6 +65,7 @@ public:
     muse::DateTime birthTime(const muse::io::path_t& filePath) const override;
     muse::DateTime lastModified(const muse::io::path_t& filePath) const override;
     muse::Ret isWritable(const muse::io::path_t& filePath) const override;
+    muse::io::path_t temporaryDirectoryPath() const override;
 
 private:
 

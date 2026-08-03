@@ -41,8 +41,7 @@ static const AudioResourceMeta DEFAULT_AUDIO_RESOURCE_META = {
     DEFAULT_SOUND_FONT_NAME,
     "Fluid",
     DEFAULT_AUDIO_RESOURCE_ATTRIBUTES,
-    AudioResourceType::FluidSoundfont,
-    false /*hasNativeEditor*/ };
+    std::string(FLUID_SOUNDFONT_TYPE_NAME) };
 
 void AudioEngineConfiguration::setConfig(const AudioEngineConfig& conf)
 {

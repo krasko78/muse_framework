@@ -104,7 +104,7 @@ muse::audio::AudioResourceMetaList VstModulesRepository::instrumentModulesMeta()
 
     std::lock_guard lock(m_mutex);
 
-    return modulesMetaList(audioplugins::AudioPluginType::Instrument);
+    return modulesMetaList(PluginType::Instrument);
 }
 
 muse::audio::AudioResourceMetaList VstModulesRepository::fxModulesMeta() const
@@ -113,25 +113,37 @@ muse::audio::AudioResourceMetaList VstModulesRepository::fxModulesMeta() const
 
     std::lock_guard lock(m_mutex);
 
-    return modulesMetaList(audioplugins::AudioPluginType::Fx);
+    return modulesMetaList(PluginType::Fx);
 }
 
 void VstModulesRepository::refresh()
 {
 }
 
-muse::audio::AudioResourceMetaList VstModulesRepository::modulesMetaList(const audioplugins::AudioPluginType& type) const
+muse::audio::AudioResourceMetaList VstModulesRepository::modulesMetaList(PluginType type) const
 {
     auto infoAccepted = [type](const audioplugins::AudioPluginInfo& info) {
-        return info.type == type && info.meta.type == muse::audio::AudioResourceType::VstPlugin && info.enabled;
+        if (info.meta.type != muse::vst::AUDIO_RESOURCE_TYPE_NAME
+            || info.state != audioplugins::AudioPluginState::Validated) {
+            return false;
+        }
+        const String& categories = info.meta.attributeVal(muse::vst::CATEGORIES_ATTRIBUTE);
+        const bool isInstrument = categories.contains(muse::vst::INSTRUMENT_CATEGORY);
+        return type == PluginType::Instrument ? isInstrument : !isInstrument;
     };
 
     audioplugins::AudioPluginInfoList infoList = knownPlugins()->pluginInfoList(infoAccepted);
     muse::audio::AudioResourceMetaList result;
     result.reserve(infoList.size());
 
+    // bridge the cache-domain PluginMeta to its engine-domain twin field-wise
     for (const audioplugins::AudioPluginInfo& info : infoList) {
-        result.push_back(info.meta);
+        muse::audio::AudioResourceMeta meta;
+        meta.id = info.meta.id;
+        meta.vendor = info.meta.vendor;
+        meta.attributes = info.meta.attributes;
+        meta.type = info.meta.type;
+        result.push_back(std::move(meta));
     }
 
     return result;

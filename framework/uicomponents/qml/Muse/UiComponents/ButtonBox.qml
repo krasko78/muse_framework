@@ -181,8 +181,10 @@ Container {
                 }
             }
 
-            if (buttonsWidths + buttonsTypes.length * root.spacing > root.width) {
-                return
+            if (lastLeftSideButtonType === -1) {
+                if (buttonsWidths + buttonsTypes.length * root.spacing > root.width) {
+                    return
+                }
             }
 
             insertSeparator(lastLeftSideButtonType)

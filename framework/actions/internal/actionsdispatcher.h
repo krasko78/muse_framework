@@ -28,11 +28,17 @@
 #include "async/asyncable.h"
 #include "async/channel.h"
 
+#include "global/modularity/ioc.h"
+#include "rcommand/icommanddispatcher.h"
+
 namespace muse::actions {
-class ActionsDispatcher : public IActionsDispatcher, public async::Asyncable
+class ActionsDispatcher : public IActionsDispatcher, public async::Asyncable, public Contextable
 {
+    muse::ContextInject<muse::rcommand::ICommandDispatcher> commandDispatcher = { this };
+
 public:
-    ActionsDispatcher() = default;
+    ActionsDispatcher(const muse::modularity::ContextPtr& iocCtx)
+        : Contextable(iocCtx) {}
     ~ActionsDispatcher() override;
 
     void dispatch(const ActionCode& actionCode) override;

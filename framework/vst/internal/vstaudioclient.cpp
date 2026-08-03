@@ -72,9 +72,9 @@ VstAudioClient::~VstAudioClient()
     // editor view is destroyed first (required by ZENOLOGY).
 }
 
-void VstAudioClient::init(AudioPluginType type, IVstPluginInstancePtr instance)
+void VstAudioClient::init(PluginType type, IVstPluginInstancePtr instance)
 {
-    IF_ASSERT_FAILED(instance && type != AudioPluginType::Undefined) {
+    IF_ASSERT_FAILED(instance && type != PluginType::Undefined) {
         return;
     }
 
@@ -273,7 +273,7 @@ audio::samples_t VstAudioClient::process(float* output, samples_t samplesPerChan
         setOutputSpec(newSpec);
     }
 
-    if (m_type == AudioPluginType::Fx) {
+    if (m_type == PluginType::Fx) {
         extractInputSamples(samplesPerChannel, output);
     }
 
@@ -283,7 +283,7 @@ audio::samples_t VstAudioClient::process(float* output, samples_t samplesPerChan
 
     m_needUpdateState = false;
 
-    if (m_type == AudioPluginType::Instrument) {
+    if (m_type == PluginType::Instrument) {
         m_inputEvents.clear();
         m_inputParamChanges.clearQueue();
 

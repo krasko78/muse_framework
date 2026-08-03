@@ -69,7 +69,7 @@ Rectangle {
 
             FlatButton {
                 anchors.verticalCenter: parent.verticalCenter
-                text: "Print"
+                text: "Print this"
                 onClicked: actionsModel.print()
             }
         }

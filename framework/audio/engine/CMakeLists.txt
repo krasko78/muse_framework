@@ -158,6 +158,15 @@ else()
         internal/codecs/vorbisdecoder.h
     )
 
+    # vorbisdecoder.cpp includes stb_vorbis.c, which defines short macros (L, C, R)
+    # that conflict with <windows.h> that may be included in a different source file
+    # when unity build is enabled
+    set_source_files_properties(
+        internal/codecs/vorbisdecoder.cpp
+        PROPERTIES
+        SKIP_UNITY_BUILD_INCLUSION ON
+    )
+
     if (OS_IS_WASM)
         target_sources(muse_audio_engine PRIVATE
             platform/web/networksfloader.cpp

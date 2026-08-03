@@ -546,6 +546,8 @@ enum class Code : char16_t {
 
     VIDEO = 0xF4C2,
 
+    PAGE_LOCK = 0xF4C3,
+
     NONE = 0xFFFF
 };
 

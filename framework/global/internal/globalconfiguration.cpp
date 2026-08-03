@@ -41,6 +41,13 @@ static const Settings::Key HIGH_RESOLUTION_TIMERS("global", "application/highRes
 
 static const std::string MUSEHUB_WEB_URL("https://www.musehub.com/");
 
+static const QString INSTALL_ROOT_TOKEN("${INSTALL_ROOT}");
+
+static QString appInstallRoot()
+{
+    return QDir::cleanPath(QCoreApplication::applicationDirPath() + "/..");
+}
+
 void GlobalConfiguration::init()
 {
     settings()->setDefaultValue(DEV_MODE_ENABLED_KEY, Val(application()->unstable()));
@@ -84,6 +91,42 @@ QString GlobalConfiguration::resolveAppDataPath() const
     // Otherwise fall back to default location (e.g. if binary has moved relative to share)
     return QString(MUSE_APP_INSTALL_PREFIX "/" MUSE_APP_INSTALL_RESOURCES_LOCATION "/");
 #endif
+}
+
+bool GlobalConfiguration::isBundledWithApp(const io::path_t& path) const
+{
+    if (!io::isAbsolute(path)) {
+        return false;
+    }
+
+    const QString root = appInstallRoot();
+    const QString abs = QDir::cleanPath(path.toQString());
+    return abs == root || abs.startsWith(root + "/");
+}
+
+io::path_t GlobalConfiguration::toBundledPath(const io::path_t& path) const
+{
+    IF_ASSERT_FAILED(isBundledWithApp(path)) {
+        return path;
+    }
+
+    const QString root = appInstallRoot();
+    return io::path_t(INSTALL_ROOT_TOKEN + QDir::cleanPath(path.toQString()).mid(root.length()));
+}
+
+bool GlobalConfiguration::isBundledPath(const io::path_t& path) const
+{
+    return path.toQString().startsWith(INSTALL_ROOT_TOKEN);
+}
+
+io::path_t GlobalConfiguration::fromBundledPath(const io::path_t& path) const
+{
+    IF_ASSERT_FAILED(isBundledPath(path)) {
+        return path;
+    }
+
+    const QString rel = path.toQString().mid(INSTALL_ROOT_TOKEN.length());
+    return io::path_t(QDir::cleanPath(appInstallRoot() + rel));
 }
 
 io::path_t GlobalConfiguration::appConfigPath() const

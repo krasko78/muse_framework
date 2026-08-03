@@ -44,6 +44,7 @@ protected:
     int metric(PaintDeviceMetric m) const override
     {
         switch (m) {
+        case QPaintDevice::PdmDpiX:
         case QPaintDevice::PdmDpiY:
             return MU_ENGRAVING_DPI;
         default:

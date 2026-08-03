@@ -31,6 +31,10 @@ public:
     void onRequest(Commandable* client, const Command& command, const CallBack& callback) override;
     void unreg(Commandable* client) override;
 
+    // for utests
+    Response dispatch(const Command& command);
+    Response dispatch(const CommandQuery& query);
+
 private:
 
     struct Client

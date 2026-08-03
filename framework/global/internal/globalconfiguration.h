@@ -42,6 +42,11 @@ public:
     io::path_t appDataPath() const override;
     io::path_t appConfigPath() const override;
 
+    bool isBundledWithApp(const io::path_t& path) const override;
+    io::path_t toBundledPath(const io::path_t& path) const override;
+    bool isBundledPath(const io::path_t& path) const override;
+    io::path_t fromBundledPath(const io::path_t& path) const override;
+
     io::path_t userAppDataPath() const override;
     io::path_t userBackupPath() const override;
     io::path_t userDataPath() const override;

@@ -22,11 +22,9 @@
 
 #include "mididevicemappingmodel.h"
 
-#include "ui/view/iconcodes.h"
-#include "shortcuts/shortcutstypes.h"
+#include "translation.h"
 
 #include "log.h"
-#include "translation.h"
 
 using namespace muse::midi;
 using namespace muse::midiremote;
@@ -40,28 +38,28 @@ static const QString ENABLED_KEY("enabled");
 static const QString MAPPED_TYPE_KEY("mappedType");
 static const QString MAPPED_VALUE_KEY("mappedValue");
 
-inline ActionCodeList allMidiActions()
+inline static ActionCodeList allMidiActions()
 {
     return {
-        "rewind",
-        "loop",
-        "play",
-        "stop",
-        "note-input",
-        "pad-note-1",
-        "pad-note-2",
-        "pad-note-4",
-        "pad-note-8",
-        "pad-note-16",
-        "pad-note-32",
-        "pad-note-64",
-        "action://notation/undo",
+        "command://playback/rewind",
+        "command://playback/loop-toggle",
+        "command://playback/play",
+        "command://playback/stop",
+        "command://notation/toggle-note-input",
+        "command://notation/set-duration-whole",
+        "command://notation/set-duration-half",
+        "command://notation/set-duration-quarter",
+        "command://notation/set-duration-eighth",
+        "command://notation/set-duration-16th",
+        "command://notation/set-duration-32nd",
+        "command://notation/set-duration-64th",
+        "command://notation/undo",
         "rest",
-        "pad-rest",
+        "command://notation/toggle-rest",
         "tie",
-        "pad-dot",
-        "pad-dot2",
-        "realtime-advance"
+        "command://notation/toggle-dot",
+        "command://notation/toggle-dot2",
+        "command://notation/realtime-advance"
     };
 }
 

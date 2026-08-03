@@ -31,5 +31,8 @@ class AudioPluginsConfigurationMock : public IAudioPluginsConfiguration
 public:
 
     MOCK_METHOD(io::path_t, knownAudioPluginsFilePath, (), (const, override));
+
+    MOCK_METHOD(const PluginAttributes&, runtimeAttributeDefaults, (), (const, override));
+    MOCK_METHOD(void, setRuntimeAttributeDefaults, (const PluginAttributes&), (override));
 };
 }

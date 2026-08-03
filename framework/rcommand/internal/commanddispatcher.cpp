@@ -49,9 +49,28 @@ async::Promise<Response> CommandDispatcher::dispatch(const Request& request)
             Response response = it->second.callback(request);
             return resolve(response);
         } else {
+            LOGW() << "command not registered: " << request.query.toString();
             return resolve(make_response(request, make_ret(Ret::Code::UnknownError)));
         }
     });
+}
+
+Response CommandDispatcher::dispatch(const Command& command)
+{
+    return dispatch(CommandQuery(command));
+}
+
+Response CommandDispatcher::dispatch(const CommandQuery& query)
+{
+    Request request = make_request(query);
+    auto it = m_clients.find(Command(query.uri()));
+    if (it != m_clients.end()) {
+        LOGI() << "try call command query: " << query.toString();
+        Response response = it->second.callback(make_request(query));
+        return response;
+    } else {
+        return make_response(request, make_ret(Ret::Code::UnknownError));
+    }
 }
 
 void CommandDispatcher::onRequest(Commandable* client, const Command& command, const CallBack& callback)

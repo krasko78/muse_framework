@@ -59,7 +59,7 @@ void VstSynthesiser::init(const OutputSpec& spec)
 
     m_pluginPtr = instancesRegister()->makeAndRegisterInstrPlugin(m_params.resourceMeta.id, m_trackId);
 
-    m_vstAudioClient->init(AudioPluginType::Instrument, m_pluginPtr);
+    m_vstAudioClient->init(PluginType::Instrument, m_pluginPtr);
 
     auto onPluginLoaded = [this]() {
         m_pluginPtr->updatePluginConfig(m_params.configuration);

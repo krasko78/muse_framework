@@ -55,5 +55,5 @@ IContextSetup* ActionsModule::newContext(const modularity::ContextPtr& ctx) cons
 
 void ActionsModuleContext::registerExports()
 {
-    ioc()->registerExport<IActionsDispatcher>(mname, new ActionsDispatcher());
+    ioc()->registerExport<IActionsDispatcher>(mname, new ActionsDispatcher(iocContext()));
 }

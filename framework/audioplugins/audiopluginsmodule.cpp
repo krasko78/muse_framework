@@ -23,6 +23,7 @@
 
 #include "internal/audiopluginsconfiguration.h"
 #include "internal/knownaudiopluginsregister.h"
+#include "internal/knownaudiopluginsmigrationregister.h"
 #include "internal/audiopluginsscannerregister.h"
 #include "internal/audiopluginmetareaderregister.h"
 #include "internal/registeraudiopluginsscenario.h"
@@ -33,7 +34,7 @@ using namespace muse;
 using namespace muse::modularity;
 using namespace muse::audioplugins;
 
-static const std::string mname("vst");
+static const std::string mname("audio_plugins");
 
 std::string AudioPluginsModule::moduleName() const
 {
@@ -45,6 +46,7 @@ void AudioPluginsModule::registerExports()
     m_configuration = std::make_shared<AudioPluginsConfiguration>(globalCtx());
 
     globalIoc()->registerExport<IAudioPluginsConfiguration>(moduleName(), m_configuration);
+    globalIoc()->registerExport<IKnownAudioPluginsMigrationRegister>(moduleName(), std::make_shared<KnownAudioPluginsMigrationRegister>());
     globalIoc()->registerExport<IKnownAudioPluginsRegister>(moduleName(), std::make_shared<KnownAudioPluginsRegister>());
     globalIoc()->registerExport<IAudioPluginsScannerRegister>(moduleName(), std::make_shared<AudioPluginsScannerRegister>());
     globalIoc()->registerExport<IAudioPluginMetaReaderRegister>(moduleName(), std::make_shared<AudioPluginMetaReaderRegister>());

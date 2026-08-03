@@ -712,6 +712,12 @@ void DockBase::applySizeConstraints()
 
     KDDockWidgets::Core::Group* group = groupForDockWidget(m_dockWidget);
 
+    //! NOTE: Skip applying floating size constraints while the dock's group is still in the main
+    //!       layout - fixes the top row growing taller on undock.
+    if (m_floating && group && group->isInMainWindow()) {
+        return;
+    }
+
     if (group) {
         group->view()->setMinimumSize(minimumSize);
         group->view()->setMaximumSize(maximumSize);
@@ -835,8 +841,8 @@ void DockBase::updateFloatingStatus()
 
 void DockBase::onIsInMainWindowChanged()
 {
-    applySizeConstraints();
     updateFloatingStatus();
+    applySizeConstraints();
 }
 
 void DockBase::doSetFloating(bool floating)

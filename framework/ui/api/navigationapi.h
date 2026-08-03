@@ -27,7 +27,7 @@
 
 #include "api/apiobject.h"
 #include "modularity/ioc.h"
-#include "actions/iactionsdispatcher.h"
+#include "rcommand/icommanddispatcher.h"
 #include "ui/inavigationcontroller.h"
 
 namespace muse::api {
@@ -35,7 +35,7 @@ class NavigationApi : public api::ApiObject
 {
     Q_OBJECT
 
-    ContextInject<actions::IActionsDispatcher> dispatcher = { this };
+    ContextInject<rcommand::ICommandDispatcher> dispatcher = { this };
     ContextInject<ui::INavigationController> navigation = { this };
 
 public:

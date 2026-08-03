@@ -22,11 +22,14 @@
 
 #pragma once
 
+#include <map>
 #include <variant>
 #include <set>
 #include <string>
 #include <cmath>
 #include <sstream>
+#include <tuple>
+#include <vector>
 
 #include "global/types/number.h"
 #include "global/types/secs.h"
@@ -38,6 +41,13 @@
 #include "mpe/events.h"
 
 #include "log.h"
+
+// Forward-declared audioplugins aliases; audio must not depend on that module.
+namespace muse::audioplugins {
+using PluginResourceId = std::string;
+using PluginResourceIdList = std::vector<PluginResourceId>;
+using PluginType = std::string;
+}
 
 namespace muse::audio {
 using secs_t = muse::secs_t;
@@ -75,7 +85,6 @@ static constexpr samples_t MINIMUM_BUFFER_SIZE = 128;
 #endif
 
 static constexpr samples_t MAXIMUM_BUFFER_SIZE = 4096;
-static constexpr samples_t DEFAULT_BUFFER_SIZE = 1024;
 
 struct OutputSpec {
     sample_rate_t sampleRate = 0;
@@ -168,43 +177,32 @@ struct AudioEngineConfig {
 };
 
 using AudioSourceName = std::string;
-using AudioResourceId = std::string;
-using AudioResourceIdList = std::vector<AudioResourceId>;
-using AudioResourceVendor = std::string;
-using AudioResourceAttributes = std::map<String, String>;
 using AudioUnitConfig = std::map<std::string, std::string>;
 
-static const String PLAYBACK_SETUP_DATA_ATTRIBUTE(u"playbackSetupData");
-static const String CATEGORIES_ATTRIBUTE(u"categories");
+// Audio-pipeline resource id; distinct role from audioplugins::PluginResourceId (both std::string).
+using AudioResourceId = std::string;
+using AudioResourceIdList = std::vector<AudioResourceId>;
 
-enum class AudioResourceType {
-    Undefined = -1,
-    FluidSoundfont,
-    VstPlugin,
-    NativeEffect,
-    MuseSamplerSoundPack,
-    Lv2Plugin,
-    AudioUnit,
-    NyquistPlugin,
-};
+inline AudioResourceId toAudioResourceId(const muse::audioplugins::PluginResourceId& id)
+{
+    return id;
+}
 
-static const std::map<AudioResourceType, QString> RESOURCE_TYPE_MAP = {
-    { AudioResourceType::Undefined, "undefined" },
-    { AudioResourceType::MuseSamplerSoundPack, "muse_sampler_sound_pack" },
-    { AudioResourceType::FluidSoundfont, "fluid_soundfont" },
-    { AudioResourceType::VstPlugin, "vst_plugin" },
-    { AudioResourceType::NativeEffect, "muse_plugin" },
-    { AudioResourceType::Lv2Plugin, "lv2_plugin" },
-    { AudioResourceType::AudioUnit, "audio_unit" },
-    { AudioResourceType::NyquistPlugin, "nyquist_plugin" },
-};
+inline AudioResourceIdList toAudioResourceIdList(const muse::audioplugins::PluginResourceIdList& ids)
+{
+    return AudioResourceIdList(ids.begin(), ids.end());
+}
+
+// audioplugins::PluginMeta is the cache-domain twin of AudioResourceMeta;
+// kept separate so neither module depends on the other.
+using AudioResourceVendor = std::string;
+using AudioResourceAttributes = std::map<String, String>;
 
 struct AudioResourceMeta {
     AudioResourceId id;
     AudioResourceVendor vendor;
     AudioResourceAttributes attributes;
-    AudioResourceType type = AudioResourceType::Undefined;
-    bool hasNativeEditorSupport = false;
+    std::string type;  // wire-string format identifier; see AudioResourceType enum below
 
     const String& attributeVal(const String& key) const
     {
@@ -212,41 +210,112 @@ struct AudioResourceMeta {
         if (search != attributes.cend()) {
             return search->second;
         }
-
-        static String empty;
+        static const String empty;
         return empty;
     }
 
     bool isValid() const
     {
-        return !id.empty()
-               && !vendor.empty()
-               && type != AudioResourceType::Undefined;
+        return !id.empty() && !vendor.empty() && !type.empty();
     }
 
     bool operator==(const AudioResourceMeta& other) const
     {
-        return id == other.id
-               && vendor == other.vendor
-               && type == other.type
-               && hasNativeEditorSupport == other.hasNativeEditorSupport
-               && attributes == other.attributes;
+        return id == other.id && vendor == other.vendor && type == other.type && attributes == other.attributes;
     }
 
-    bool operator!=(const AudioResourceMeta& other) const
-    {
-        return !(*this == other);
-    }
+    bool operator!=(const AudioResourceMeta& other) const { return !(*this == other); }
 
     bool operator<(const AudioResourceMeta& other) const
     {
-        return id < other.id
-               || vendor < other.vendor;
+        return std::tie(id, vendor, type, attributes)
+               < std::tie(other.id, other.vendor, other.type, other.attributes);
     }
 };
 
 using AudioResourceMetaList = std::vector<AudioResourceMeta>;
 using AudioResourceMetaSet = std::set<AudioResourceMeta>;
+
+inline bool boolAttribute(const AudioResourceMeta& meta, const String& key, bool fallback = false)
+{
+    const String& v = meta.attributeVal(key);
+    if (v.empty()) {
+        return fallback;
+    }
+    return v == u"true" || v == u"1";
+}
+
+inline int intAttribute(const AudioResourceMeta& meta, const String& key, int fallback = 0)
+{
+    const String& v = meta.attributeVal(key);
+    if (v.empty()) {
+        return fallback;
+    }
+    bool ok = true;
+    int n = v.toInt(&ok);
+    return ok ? n : fallback;
+}
+
+// Wire strings persisted in the plugin cache; constexpr for the RESOURCE_TYPE_NAMES map below.
+inline constexpr std::string_view FLUID_SOUNDFONT_TYPE_NAME = "FluidSoundfont";
+inline constexpr std::string_view NATIVE_EFFECT_TYPE_NAME = "NativeEffect";
+
+// Engine-internal routing enum, distinct from the opaque audioplugins::PluginType string.
+enum class AudioResourceType {
+    Undefined = -1,
+    FluidSoundfont,
+    VstPlugin,
+    NativeEffect,
+    MuseSamplerSoundPack,
+};
+
+static const std::map<AudioResourceType, std::string> RESOURCE_TYPE_NAMES = {
+    { AudioResourceType::FluidSoundfont,        std::string(FLUID_SOUNDFONT_TYPE_NAME) },
+    { AudioResourceType::VstPlugin,             "VstPlugin" },
+    { AudioResourceType::NativeEffect,          std::string(NATIVE_EFFECT_TYPE_NAME) },
+    { AudioResourceType::MuseSamplerSoundPack,  "MuseSamplerSoundPack" },
+};
+
+inline const std::string& resourceTypeName(AudioResourceType type)
+{
+    auto it = RESOURCE_TYPE_NAMES.find(type);
+    if (it != RESOURCE_TYPE_NAMES.end()) {
+        return it->second;
+    }
+    static const std::string empty;
+    return empty;
+}
+
+inline AudioResourceType resourceTypeFromString(const std::string& name)
+{
+    for (const auto& kv : RESOURCE_TYPE_NAMES) {
+        if (kv.second == name) {
+            return kv.first;
+        }
+    }
+    return AudioResourceType::Undefined;
+}
+
+inline bool isResourceType(const AudioResourceMeta& meta, AudioResourceType type)
+{
+    return resourceTypeFromString(meta.type) == type;
+}
+
+static const String PLAYBACK_SETUP_DATA_ATTRIBUTE(u"playbackSetupData");
+static const String HAS_NATIVE_EDITOR_SUPPORT_ATTRIBUTE(u"hasNativeEditorSupport");
+
+inline bool hasNativeEditorSupport(const AudioResourceMeta& meta)
+{
+    return boolAttribute(meta, HAS_NATIVE_EDITOR_SUPPORT_ATTRIBUTE);
+}
+
+static const std::map<AudioResourceType, QString> RESOURCE_TYPE_MAP = {
+    { AudioResourceType::Undefined, "undefined" },
+    { AudioResourceType::MuseSamplerSoundPack, "muse_sampler_sound_pack" },
+    { AudioResourceType::FluidSoundfont, "fluid_soundfont" },
+    { AudioResourceType::VstPlugin, "vst_plugin" },
+    { AudioResourceType::NativeEffect, "muse_plugin" },
+};
 
 static const AudioResourceId MUSE_REVERB_ID("Muse Reverb");
 
@@ -305,14 +374,11 @@ struct AudioFxParams {
 
     AudioFxType type() const
     {
-        switch (resourceMeta.type) {
+        switch (resourceTypeFromString(resourceMeta.type)) {
         case AudioResourceType::VstPlugin: return AudioFxType::VstFx;
         case AudioResourceType::NativeEffect: return AudioFxType::MuseFx;
-        case AudioResourceType::AudioUnit:
-        case AudioResourceType::Lv2Plugin:
         case AudioResourceType::FluidSoundfont:
         case AudioResourceType::MuseSamplerSoundPack:
-        case AudioResourceType::NyquistPlugin:
         case AudioResourceType::Undefined: break;
         }
 
@@ -384,16 +450,13 @@ enum class AudioSourceType {
     MuseSampler
 };
 
-inline AudioSourceType sourceTypeFromResourceType(AudioResourceType type)
+inline AudioSourceType sourceTypeFromResourceType(const muse::audioplugins::PluginType& metaType)
 {
-    switch (type) {
+    switch (resourceTypeFromString(metaType)) {
     case AudioResourceType::FluidSoundfont: return AudioSourceType::Fluid;
     case AudioResourceType::VstPlugin: return AudioSourceType::Vsti;
     case AudioResourceType::MuseSamplerSoundPack: return AudioSourceType::MuseSampler;
-    case AudioResourceType::AudioUnit:
-    case AudioResourceType::Lv2Plugin:
     case AudioResourceType::NativeEffect:
-    case AudioResourceType::NyquistPlugin:
     case AudioResourceType::Undefined: break;
     }
 
@@ -595,4 +658,12 @@ struct TransportEvent {
     std::variant<std::monostate, SeekData> data;
 };
 using TransportEvents = std::vector<TransportEvent>;
+}
+
+inline muse::logger::Stream& operator<<(muse::logger::Stream& s, const muse::audio::OutputSpec& spec)
+{
+    s << "sampleRate: " << spec.sampleRate
+      << ", channels: " << spec.audioChannelCount
+      << ", samplesPerChannel: " << spec.samplesPerChannel;
+    return s;
 }

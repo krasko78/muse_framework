@@ -63,6 +63,7 @@ public:
     void setAttribute(const io::path_t& path, Attribute attribute) const override;
     bool setPermissionsAllowedForAll(const io::path_t& path) const override;
 
+    io::path_t temporaryDirectoryPath() const override;
     io::path_t canonicalFilePath(const io::path_t& filePath) const override;
     io::path_t absolutePath(const io::path_t& filePath) const override;
     io::path_t absoluteFilePath(const io::path_t& filePath) const override;

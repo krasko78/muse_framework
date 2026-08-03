@@ -39,8 +39,5 @@ public:
 
     virtual io::path_t shortcutsUserAppDataPath() const = 0;
     virtual io::path_t shortcutsAppDataPath() const = 0;
-
-    virtual io::path_t commandShortcutsUserAppDataPath() const = 0;
-    virtual io::path_t commandShortcutsAppDataPath() const = 0;
 };
 }

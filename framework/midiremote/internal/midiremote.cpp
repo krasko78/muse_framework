@@ -26,10 +26,9 @@
 #include "global/io/buffer.h"
 #include "global/serialization/xmlstreamreader.h"
 #include "global/serialization/xmlstreamwriter.h"
+#include "global/stringutils.h"
 
 #include "multiwindows/resourcelockguard.h"
-
-#include "actions/actiontypes.h"
 
 #include "log.h"
 
@@ -43,7 +42,7 @@ static constexpr std::string_view MAPPING_ACTION_CODE_TAG("key");
 static constexpr std::string_view MAPPING_EVENT_TYPE_TAG("EventType");
 static constexpr std::string_view MAPPING_EVENT_VALUE_TAG("EventValue");
 
-static const std::string REALTIME_ADVANCE_ACTION_NAME("realtime-advance");
+static const std::string REALTIME_ADVANCE_ACTION_NAME("command://notation/realtime-advance");
 
 static const std::string MIDI_MAPPING_RESOURCE_NAME("MIDI_MAPPING");
 
@@ -132,6 +131,11 @@ Ret MidiRemote::process(const Event& ev)
 
     for (const MidiControlsMapping& midiMapping : m_midiMappings) {
         if (midiMapping.event == event) {
+            if (muse::strings::startsWith(midiMapping.action, rcommand::COMMAND_SCHEME)) {
+                commandDispatcher()->dispatch(rcommand::Command(midiMapping.action));
+            } else {
+                dispatcher()->dispatch(midiMapping.action);
+            }
             dispatcher()->dispatch(midiMapping.action);
             return make_ret(Ret::Code::Ok);
         }
@@ -289,18 +293,18 @@ void MidiRemote::processMMC(const MMCMessage& msg)
 {
     switch (msg.command) {
     case MMCCommand::Play:
-        dispatcher()->dispatch("play");
+        commandDispatcher()->dispatch(rcommand::Command("command://playback/play"));
         break;
     case MMCCommand::Pause:
-        dispatcher()->dispatch("pause");
+        commandDispatcher()->dispatch(rcommand::Command("command://playback/pause"));
         break;
     case MMCCommand::Stop:
-        dispatcher()->dispatch("stop");
+        commandDispatcher()->dispatch(rcommand::Command("command://playback/stop"));
         break;
     case MMCCommand::Locate: {
         const std::optional<double> pos = m_mmcDecoder->locateToSeconds(msg);
         if (pos.has_value()) {
-            dispatcher()->dispatch("rewind", actions::ActionData::make_arg1<secs_t>(pos.value()));
+            commandDispatcher()->dispatch(rcommand::make_query("command://playback/rewind", { { "position", Val(pos.value()) } }));
         }
     } break;
     default: break;

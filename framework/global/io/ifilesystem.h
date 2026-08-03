@@ -71,6 +71,7 @@ public:
     virtual Ret closeStream(StreamId fileId) = 0;
 
     //! NOTE File info
+    virtual io::path_t temporaryDirectoryPath() const = 0;
     virtual io::path_t canonicalFilePath(const io::path_t& filePath) const = 0;
     virtual io::path_t absolutePath(const io::path_t& filePath) const = 0;
     virtual io::path_t absoluteFilePath(const io::path_t& filePath) const = 0;

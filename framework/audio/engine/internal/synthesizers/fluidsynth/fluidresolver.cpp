@@ -113,13 +113,12 @@ void FluidResolver::refresh()
 
             AudioResourceMeta chooseAutomaticMeta;
             chooseAutomaticMeta.id = id;
-            chooseAutomaticMeta.type = AudioResourceType::FluidSoundfont;
+            chooseAutomaticMeta.type = FLUID_SOUNDFONT_TYPE_NAME;
             chooseAutomaticMeta.vendor = FLUID_VENDOR_NAME;
             chooseAutomaticMeta.attributes = {
                 { PLAYBACK_SETUP_DATA_ATTRIBUTE, muse::mpe::GENERIC_SETUP_DATA_STRING },
                 { SOUNDFONT_NAME_ATTRIBUTE, String::fromStdString(soundFont.name) }
             };
-            chooseAutomaticMeta.hasNativeEditorSupport = false;
 
             m_resourcesCache.emplace(id, SoundFontResource { soundFont.path, std::nullopt, std::move(chooseAutomaticMeta) });
         }
@@ -129,7 +128,7 @@ void FluidResolver::refresh()
 
             AudioResourceMeta meta;
             meta.id = id;
-            meta.type = AudioResourceType::FluidSoundfont;
+            meta.type = FLUID_SOUNDFONT_TYPE_NAME;
             meta.vendor = FLUID_VENDOR_NAME;
             meta.attributes = {
                 { PLAYBACK_SETUP_DATA_ATTRIBUTE, muse::mpe::GENERIC_SETUP_DATA_STRING },
@@ -138,7 +137,6 @@ void FluidResolver::refresh()
                 { PRESET_BANK_ATTRIBUTE, String::number(preset.program.bank) },
                 { PRESET_PROGRAM_ATTRIBUTE, String::number(preset.program.program) },
             };
-            meta.hasNativeEditorSupport = false;
 
             m_resourcesCache.emplace(id, SoundFontResource { soundFont.path, preset.program, std::move(meta) });
         }

@@ -28,3 +28,13 @@ io::path_t AudioPluginsConfiguration::knownAudioPluginsFilePath() const
 {
     return globalConfiguration()->userAppDataPath() + "/known_audio_plugins.json";
 }
+
+const PluginAttributes& AudioPluginsConfiguration::runtimeAttributeDefaults() const
+{
+    return m_runtimeAttributeDefaults;
+}
+
+void AudioPluginsConfiguration::setRuntimeAttributeDefaults(const PluginAttributes& defaults)
+{
+    m_runtimeAttributeDefaults = defaults;
+}

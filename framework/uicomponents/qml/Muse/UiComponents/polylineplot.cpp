@@ -141,8 +141,22 @@ PolylinePlot::PolylinePlot(QQuickItem* parent)
     setAcceptedMouseButtons(Qt::LeftButton);
 
     setAntialiasing(true);
-    setRenderTarget(QQuickPaintedItem::FramebufferObject);
     setOpaquePainting(false);
+
+    m_standardPointStyle = new PolylinePointStyle(this);
+    QObject::connect(m_standardPointStyle, &PolylinePointStyle::styleChanged, this, [this]() {
+        update();
+    });
+
+    m_hoveredPointStyle = new PolylinePointStyle(this);
+    QObject::connect(m_hoveredPointStyle, &PolylinePointStyle::styleChanged, this, [this]() {
+        update();
+    });
+
+    m_ghostPointStyle = new PolylinePointStyle(this);
+    QObject::connect(m_ghostPointStyle, &PolylinePointStyle::styleChanged, this, [this]() {
+        update();
+    });
 }
 
 void PolylinePlot::init()
@@ -156,6 +170,21 @@ void PolylinePlot::init()
         m_hoveredOnLine = false;
         resetGestureState();
     });
+}
+
+PolylinePointStyle* PolylinePlot::standardPointStyle()
+{
+    return m_standardPointStyle;
+}
+
+PolylinePointStyle* PolylinePlot::hoveredPointStyle()
+{
+    return m_hoveredPointStyle;
+}
+
+PolylinePointStyle* PolylinePlot::ghostPointStyle()
+{
+    return m_ghostPointStyle;
 }
 
 QColor PolylinePlot::lineColor() const
@@ -225,100 +254,6 @@ void PolylinePlot::setBaselineN(qreal v)
     emit baselineNChanged();
 
     update();
-}
-
-qreal PolylinePlot::pointRadius() const
-{
-    return m_pointRadius;
-}
-
-void PolylinePlot::setPointRadius(qreal r)
-{
-    if (m_pointRadius == r) {
-        return;
-    }
-
-    m_pointRadius = r;
-    emit pointRadiusChanged();
-
-    update();
-}
-
-qreal PolylinePlot::ghostPointRadius() const
-{
-    return m_ghostPointRadius;
-}
-
-void PolylinePlot::setGhostPointRadius(qreal r)
-{
-    if (m_ghostPointRadius == r) {
-        return;
-    }
-
-    m_ghostPointRadius = r;
-    emit ghostPointRadiusChanged();
-
-    update();
-}
-
-qreal PolylinePlot::pointOutlineWidth() const
-{
-    return m_pointOutlineWidth;
-}
-
-void PolylinePlot::setPointOutlineWidth(qreal w)
-{
-    if (m_pointOutlineWidth == w) {
-        return;
-    }
-
-    m_pointOutlineWidth = w;
-    emit pointOutlineWidthChanged();
-}
-
-QColor PolylinePlot::pointOutlineColor() const
-{
-    return m_pointOutlineColor;
-}
-
-void PolylinePlot::setPointOutlineColor(const QColor& c)
-{
-    if (m_pointOutlineColor == c) {
-        return;
-    }
-
-    m_pointOutlineColor = c;
-    emit pointOutlineColorChanged();
-}
-
-QColor PolylinePlot::pointCentreColor() const
-{
-    return m_pointCentreColor;
-}
-
-void PolylinePlot::setPointCentreColor(const QColor& c)
-{
-    if (m_pointCentreColor == c) {
-        return;
-    }
-
-    m_pointCentreColor = c;
-    emit pointCentreColorChanged();
-}
-
-QColor PolylinePlot::ghostPointOutlineColor() const
-{
-    return m_ghostPointOutlineColor;
-}
-
-void PolylinePlot::setGhostPointOutlineColor(const QColor& c)
-{
-    if (m_ghostPointOutlineColor == c) {
-        return;
-    }
-
-    m_ghostPointOutlineColor = c;
-    emit ghostPointOutlineColorChanged();
 }
 
 qreal PolylinePlot::hitRadius() const
@@ -1092,6 +1027,46 @@ void PolylinePlot::geometryChange(const QRectF& newG, const QRectF& oldG)
     }
 }
 
+void PolylinePlot::paintPoint(QPainter* painter, const PolylinePointStyle* style, const QPointF& centre) const
+{
+    IF_ASSERT_FAILED(painter && style) {
+        return;
+    }
+
+    const qreal centerRadius = style->centerRadius();
+    const qreal middleRingWidth = style->middleRingWidth();
+    const qreal outlineWidth = style->outlineWidth();
+
+    if (middleRingWidth > 0.0) {
+        const qreal middleRadius = centerRadius + middleRingWidth;
+        const qreal outerRadius = middleRadius + outlineWidth;
+
+        painter->setPen(Qt::NoPen);
+
+        painter->setBrush(style->outlineColor());
+        painter->drawEllipse(centre, outerRadius, outerRadius);
+
+        painter->setBrush(style->middleRingColor());
+        painter->drawEllipse(centre, middleRadius, middleRadius);
+
+        painter->setBrush(style->centerColor());
+        painter->drawEllipse(centre, centerRadius, centerRadius);
+        return;
+    }
+
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(style->centerColor());
+    painter->drawEllipse(centre, centerRadius, centerRadius);
+
+    if (outlineWidth > 0.0) {
+        QPen pen(style->outlineColor());
+        pen.setWidthF(outlineWidth);
+        painter->setPen(pen);
+        painter->setBrush(Qt::NoBrush);
+        painter->drawEllipse(centre, centerRadius, centerRadius);
+    }
+}
+
 void PolylinePlot::paint(QPainter* painter)
 {
     if (!painter) {
@@ -1127,45 +1102,21 @@ void PolylinePlot::paint(QPainter* painter)
     }
 
     // draw points
-    painter->setPen(Qt::NoPen);
-    painter->setBrush(m_lineColor);
+    IF_ASSERT_FAILED(m_standardPointStyle && m_hoveredPointStyle && m_ghostPointStyle) {
+        return;
+    }
 
     const int n = m_pointsNVisible.size();
     const int hoveredIndex = pointIndexAtPx(m_hoverPx);
     for (int i = 0; i < n; ++i) {
         QPointF pN = m_pointsNVisible[i];
-        const QPointF c(toPxX(this, pN.x()), toPxY(this, pN.y()));
+        const QPointF centre(toPxX(this, pN.x()), toPxY(this, pN.y()));
 
         const int domainIdx
             =(i < m_visibleToDomainIndex.size()) ? m_visibleToDomainIndex[i] : INVALID_POINT_IDX;
         const bool isHovered = (domainIdx >= 0 && domainIdx == hoveredIndex);
-        if (isHovered) {
-            const qreal regularOuterRadius = m_pointRadius + (m_pointOutlineWidth * 0.5);
-            const qreal hoveredOuterRadius = regularOuterRadius + 1.0;
-
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(m_pointOutlineColor);
-            painter->drawEllipse(c, hoveredOuterRadius, hoveredOuterRadius);
-
-            painter->setBrush(Qt::black);
-            painter->drawEllipse(c, m_pointRadius - 1.0, m_pointRadius - 1.0);
-
-            painter->setBrush(Qt::white);
-            painter->drawEllipse(c, m_pointRadius - 3.0, m_pointRadius - 3.0);
-        } else {
-            // fill
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(m_pointCentreColor);
-            painter->drawEllipse(c, m_pointRadius, m_pointRadius);
-
-            // outline
-            QPen innerPen(m_pointOutlineColor);
-            innerPen.setWidthF(m_pointOutlineWidth);
-            painter->setPen(innerPen);
-            painter->setBrush(Qt::NoBrush);
-
-            painter->drawEllipse(c, m_pointRadius, m_pointRadius);
-        }
+        const PolylinePointStyle* style = isHovered ? m_hoveredPointStyle : m_standardPointStyle;
+        paintPoint(painter, style, centre);
     }
 
     // draw hover ghost point
@@ -1182,18 +1133,7 @@ void PolylinePlot::paint(QPainter* painter)
         }
 
         if (pointIndexAtPx(hp) < 0 && isNearLinePx(hp)) {
-            // fill
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(m_ghostPointOutlineColor);
-            painter->drawEllipse(hp, m_ghostPointRadius, m_ghostPointRadius);
-
-            // outline
-            QPen innerPen(m_ghostPointOutlineColor);
-            innerPen.setWidthF(m_pointOutlineWidth);
-            painter->setPen(innerPen);
-            painter->setBrush(Qt::NoBrush);
-
-            painter->drawEllipse(hp, m_ghostPointRadius, m_ghostPointRadius);
+            paintPoint(painter, m_ghostPointStyle, hp);
         }
     }
 }

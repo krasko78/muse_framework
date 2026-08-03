@@ -189,6 +189,7 @@ signals:
 protected:
     friend class DockWindow;
     friend class DropController;
+    friend class TopLevelToolBarsLayout;
 
     void componentComplete() override;
 

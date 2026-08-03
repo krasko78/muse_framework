@@ -22,9 +22,12 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "global/modularity/ioc.h"
 #include "global/iprocess.h"
 #include "global/iglobalconfiguration.h"
+#include "global/io/ifilesystem.h"
 #include "interactive/iinteractive.h"
 #include "global/async/asyncable.h"
 
@@ -39,6 +42,7 @@ class RegisterAudioPluginsScenario : public IRegisterAudioPluginsScenario, publi
 public:
     GlobalInject<IGlobalConfiguration> globalConfiguration;
     GlobalInject<IProcess> process;
+    GlobalInject<io::IFileSystem> fileSystem;
     GlobalInject<IKnownAudioPluginsRegister> knownPluginsRegister;
     GlobalInject<IAudioPluginsScannerRegister> scannerRegister;
     GlobalInject<IAudioPluginMetaReaderRegister> metaReaderRegister;
@@ -52,20 +56,26 @@ public:
 
     PluginScanResult scanPlugins(Progress* progress = nullptr) const override;
 
-    void updatePluginsRegistry() override;
+    Ret updatePluginsRegistry() override;
+    Ret rescanAllPlugins() override;
 
-    Ret registerNewPlugins(const io::paths_t& pluginPaths) override;
-    Ret unregisterRemovedPlugins(const audio::AudioResourceIdList& pluginIds) override;
+    Ret registerNewPlugins(const io::paths_t& pluginPaths, bool validate) override;
+    Ret unregisterRemovedPlugins(const PluginResourceIdList& pluginIds) override;
 
     Ret registerPlugin(const io::path_t& pluginPath) override;
-    Ret registerFailedPlugin(const io::path_t& pluginPath, int failCode) override;
+    Ret validatePlugin(const io::path_t& pluginPath, const io::path_t& outputFile) override;
 
 private:
+    Ret persistDiscoveredPlaceholders(const io::paths_t& pluginPaths);
     void processPluginsRegistration(const io::paths_t& pluginPaths);
+    AudioPluginInfoList scanResult(const io::path_t& pluginPath, const io::path_t& resultFile, int code) const;
+    RetVal<AudioPluginInfoList> validatePluginInfo(const io::path_t& pluginPath) const;
+    AudioPluginInfo makeFailedPluginInfo(const io::path_t& pluginPath, int failCode) const;
+    io::path_t scanResultFilePath(int64_t index) const;
     IAudioPluginMetaReaderPtr metaReader(const io::path_t& pluginPath) const;
-    audio::AudioResourceType metaType(const io::path_t& pluginPath) const;
+    PluginType metaType(const io::path_t& pluginPath) const;
 
     Progress m_progress;
-    bool m_aborted = false;
+    std::atomic_bool m_aborted = false;
 };
 }

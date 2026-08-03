@@ -35,6 +35,8 @@
 #include "actions/iactionsdispatcher.h"
 #include "ui/iuiconfiguration.h"
 
+#include "internal/polylinepointstyle.h"
+
 // NOTE: all of fooN() function are normalized, returning 0..1 values
 
 namespace muse::uicomponents {
@@ -47,17 +49,15 @@ class PolylinePlot : public QQuickPaintedItem, public muse::async::Asyncable, pu
 {
     Q_OBJECT
 
+    Q_PROPERTY(PolylinePointStyle * standardPointStyle READ standardPointStyle CONSTANT)
+    Q_PROPERTY(PolylinePointStyle * hoveredPointStyle READ hoveredPointStyle CONSTANT)
+    Q_PROPERTY(PolylinePointStyle * ghostPointStyle READ ghostPointStyle CONSTANT)
+
     Q_PROPERTY(QColor lineColor READ lineColor WRITE setLineColor NOTIFY lineColorChanged)
     Q_PROPERTY(qreal lineWidth READ lineWidth WRITE setLineWidth NOTIFY lineWidthChanged)
     Q_PROPERTY(bool drawBackground READ drawBackground WRITE setDrawBackground NOTIFY drawBackgroundChanged)
     Q_PROPERTY(qreal baselineN READ baselineN WRITE setBaselineN NOTIFY baselineNChanged)
-    Q_PROPERTY(qreal pointRadius READ pointRadius WRITE setPointRadius NOTIFY pointRadiusChanged)
-    Q_PROPERTY(qreal ghostPointRadius READ ghostPointRadius WRITE setGhostPointRadius NOTIFY ghostPointRadiusChanged)
-    Q_PROPERTY(qreal pointOutlineWidth READ pointOutlineWidth WRITE setPointOutlineWidth NOTIFY pointOutlineWidthChanged)
-    Q_PROPERTY(QColor pointOutlineColor READ pointOutlineColor WRITE setPointOutlineColor NOTIFY pointOutlineColorChanged)
-    Q_PROPERTY(QColor pointCentreColor READ pointCentreColor WRITE setPointCentreColor NOTIFY pointCentreColorChanged)
-    Q_PROPERTY(
-        QColor ghostPointOutlineColor READ ghostPointOutlineColor WRITE setGhostPointOutlineColor NOTIFY ghostPointOutlineColorChanged)
+
     Q_PROPERTY(qreal hitRadius READ hitRadius WRITE setHitRadius NOTIFY hitRadiusChanged)
 
     Q_PROPERTY(bool isSnapEnabled READ isSnapEnabled WRITE setIsSnapEnabled NOTIFY isSnapEnabledChanged)
@@ -95,6 +95,10 @@ public:
 
     Q_INVOKABLE void init();
 
+    PolylinePointStyle* standardPointStyle();
+    PolylinePointStyle* hoveredPointStyle();
+    PolylinePointStyle* ghostPointStyle();
+
     QColor lineColor() const;
     void setLineColor(const QColor&);
 
@@ -106,24 +110,6 @@ public:
 
     qreal baselineN() const;
     void setBaselineN(qreal);
-
-    qreal pointRadius() const;
-    void setPointRadius(qreal);
-
-    qreal ghostPointRadius() const;
-    void setGhostPointRadius(qreal);
-
-    qreal pointOutlineWidth() const;
-    void setPointOutlineWidth(qreal);
-
-    QColor pointOutlineColor() const;
-    void setPointOutlineColor(const QColor&);
-
-    QColor pointCentreColor() const;
-    void setPointCentreColor(const QColor&);
-
-    QColor ghostPointOutlineColor() const;
-    void setGhostPointOutlineColor(const QColor&);
 
     qreal hitRadius() const;
     void setHitRadius(qreal);
@@ -174,12 +160,7 @@ signals:
     void lineWidthChanged();
     void drawBackgroundChanged();
     void baselineNChanged();
-    void pointRadiusChanged();
-    void ghostPointRadiusChanged();
-    void pointOutlineWidthChanged();
-    void pointOutlineColorChanged();
-    void pointCentreColorChanged();
-    void ghostPointOutlineColorChanged();
+
     void hitRadiusChanged();
     void isSnapEnabledChanged();
     void snapThresholdPxChanged();
@@ -242,16 +223,17 @@ private:
     QPointF snapToNeighbor(qreal dragPxX, QPointF pDomain) const;
     void updateActivePoint();
 
+    void paintPoint(QPainter* painter, const PolylinePointStyle* style, const QPointF& centre) const;
+
 private:
     QColor m_lineColor;
     qreal m_lineWidth = 1.0;
-    qreal m_baselineN =0.5;
-    qreal m_pointRadius = 3.0;
-    qreal m_ghostPointRadius = 3.0;
-    qreal m_pointOutlineWidth = 1.0;
-    QColor m_pointOutlineColor;
-    QColor m_pointCentreColor;
-    QColor m_ghostPointOutlineColor;
+    qreal m_baselineN = 0.5;
+
+    PolylinePointStyle* m_standardPointStyle = nullptr;
+    PolylinePointStyle* m_hoveredPointStyle = nullptr;
+    PolylinePointStyle* m_ghostPointStyle = nullptr;
+
     qreal m_hitRadius = 9.0;
     bool m_isSnapEnabled = true;
     qreal m_snapThresholdPx = 7.0;

@@ -43,6 +43,8 @@
 #include "io/path.h"
 #include "log.h"
 
+#include "vstpluginattrs.h"
+
 namespace muse::vst {
 class IVstPluginInstance;
 using IVstPluginInstancePtr = std::shared_ptr<IVstPluginInstance>;
@@ -80,6 +82,12 @@ using ParamsMapping = std::unordered_map<ControlIdx, PluginParamId>;
 //@see https://developer.steinberg.help/pages/viewpage.action?pageId=9798275
 static const std::string VST3_PACKAGE_EXTENSION = "vst3";
 static const std::string VST3_PACKAGE_FILTER = "*." + VST3_PACKAGE_EXTENSION;
+
+enum class PluginType {
+    Undefined = -1,
+    Instrument,
+    Fx,
+};
 
 /// @see https://steinbergmedia.github.io/vst3_doc/vstinterfaces/namespaceSteinberg_1_1Vst_1_1PlugType.html
 namespace PluginCategory {

@@ -22,10 +22,8 @@
 
 #include "dialogview.h"
 
-#include <QApplication>
 #include <QQuickView>
 #include <QScreen>
-#include <QStyle>
 
 #ifdef Q_OS_MAC
 #include "internal/platform/macos/macoswindowlevelcontroller.h"
@@ -36,8 +34,6 @@
 using namespace Qt::Literals::StringLiterals;
 
 using namespace muse::uicomponents;
-
-static const int DIALOG_WINDOW_FRAME_HEIGHT(20);
 
 DialogView::DialogView(QQuickItem* parent)
     : WindowView(parent)
@@ -127,41 +123,38 @@ void DialogView::updateGeometry()
         referenceRect = anchorRect;
     }
 
-    QRect dlgRect = viewGeometry();
+    QMargins frameMargins = m_view->frameMargins(); // actual window frame margins (title bar height etc.)
+    QRect dlgRect = viewGeometry(); // content geometry
+    dlgRect = dlgRect.marginsAdded(frameMargins);
 
     // position the dialog in the center of the main window
     dlgRect.moveLeft(referenceRect.x() + (referenceRect.width() - dlgRect.width()) / 2);
-    dlgRect.moveTop(referenceRect.y() + (referenceRect.height() - dlgRect.height()) / 2 + DIALOG_WINDOW_FRAME_HEIGHT);
-
-    dlgRect.moveLeft(dlgRect.x());
-    dlgRect.moveTop(dlgRect.y());
+    dlgRect.moveTop(referenceRect.y() + (referenceRect.height() - dlgRect.height()) / 2);
 
     // try to move the dialog if it doesn't fit on the screen
 
-    int titleBarHeight = QApplication::style()->pixelMetric(QStyle::PM_TitleBarHeight);
-
     if (dlgRect.left() <= anchorRect.left()) {
-        dlgRect.moveLeft(anchorRect.left() + DIALOG_WINDOW_FRAME_HEIGHT);
+        dlgRect.moveLeft(anchorRect.left());
     }
 
-    if (dlgRect.top() - titleBarHeight <= anchorRect.top()) {
-        dlgRect.moveTop(anchorRect.top() + titleBarHeight + DIALOG_WINDOW_FRAME_HEIGHT);
+    if (dlgRect.top() <= anchorRect.top()) {
+        dlgRect.moveTop(anchorRect.top());
     }
 
     if (dlgRect.right() >= anchorRect.right()) {
-        dlgRect.moveRight(anchorRect.right() - DIALOG_WINDOW_FRAME_HEIGHT);
+        dlgRect.moveRight(anchorRect.right());
     }
 
     if (dlgRect.bottom() >= anchorRect.bottom()) {
-        dlgRect.moveBottom(anchorRect.bottom() - DIALOG_WINDOW_FRAME_HEIGHT);
+        dlgRect.moveBottom(anchorRect.bottom());
     }
 
     // if after moving the dialog does not fit on the screen, then adjust the size of the dialog
     if (!anchorRect.contains(dlgRect)) {
-        anchorRect -= QMargins(DIALOG_WINDOW_FRAME_HEIGHT, DIALOG_WINDOW_FRAME_HEIGHT + titleBarHeight,
-                               DIALOG_WINDOW_FRAME_HEIGHT, DIALOG_WINDOW_FRAME_HEIGHT);
         dlgRect = anchorRect.intersected(dlgRect);
     }
+
+    dlgRect = dlgRect.marginsRemoved(frameMargins);
 
     m_globalPos = dlgRect.topLeft();
 

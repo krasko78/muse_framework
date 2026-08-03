@@ -21,6 +21,8 @@
  */
 #include "navigationapi.h"
 
+#include "navigationcommands.h"
+
 #include "log.h"
 
 using namespace muse::api;
@@ -37,37 +39,37 @@ NavigationApi::~NavigationApi()
 
 void NavigationApi::nextPanel()
 {
-    dispatcher()->dispatch("nav-next-panel");
+    dispatcher()->dispatch(NEXT_PANEL_COMMAND);
 }
 
 void NavigationApi::prevPanel()
 {
-    dispatcher()->dispatch("nav-prev-panel");
+    dispatcher()->dispatch(PREV_PANEL_COMMAND);
 }
 
 void NavigationApi::right()
 {
-    dispatcher()->dispatch("nav-right");
+    dispatcher()->dispatch(RIGHT_COMMAND);
 }
 
 void NavigationApi::left()
 {
-    dispatcher()->dispatch("nav-left");
+    dispatcher()->dispatch(LEFT_COMMAND);
 }
 
 void NavigationApi::up()
 {
-    dispatcher()->dispatch("nav-up");
+    dispatcher()->dispatch(UP_COMMAND);
 }
 
 void NavigationApi::down()
 {
-    dispatcher()->dispatch("nav-down");
+    dispatcher()->dispatch(DOWN_COMMAND);
 }
 
 void NavigationApi::escape()
 {
-    dispatcher()->dispatch("nav-escape");
+    dispatcher()->dispatch(ESCAPE_COMMAND);
 }
 
 bool NavigationApi::goToControl(const QString& section, const QString& panel, const QJSValue& controlNameOrIndex)
@@ -95,7 +97,7 @@ bool NavigationApi::goToControl(const QString& section, const QString& panel, co
 
 void NavigationApi::trigger()
 {
-    dispatcher()->dispatch("nav-trigger-control");
+    dispatcher()->dispatch(TRIGGER_CONTROL_COMMAND);
 }
 
 bool NavigationApi::triggerControl(const QString& section, const QString& panel, const QJSValue& controlNameOrIndex)

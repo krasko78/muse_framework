@@ -24,6 +24,8 @@ qt_add_qml_module(muse_dockwindow_qml
         dockwindow.h
         foreign.cpp
         foreign.h
+        topleveltoolbarslayout.cpp
+        topleveltoolbarslayout.h
     QML_FILES
         DockFloatingWindow.qml
         DockFrame.qml

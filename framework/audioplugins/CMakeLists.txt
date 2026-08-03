@@ -27,17 +27,19 @@ target_sources(muse_audioplugins PRIVATE
     audiopluginserrors.h
     iaudiopluginsconfiguration.h
     iknownaudiopluginsregister.h
+    iknownaudiopluginsmigrationregister.h
     iaudiopluginsscanner.h
     iaudiopluginsscannerregister.h
     iaudiopluginmetareader.h
     iaudiopluginmetareaderregister.h
     iregisteraudiopluginsscenario.h
 
-    internal/audiopluginsutils.h
     internal/audiopluginsconfiguration.cpp
     internal/audiopluginsconfiguration.h
     internal/knownaudiopluginsregister.cpp
     internal/knownaudiopluginsregister.h
+    internal/knownaudiopluginsmigrationregister.cpp
+    internal/knownaudiopluginsmigrationregister.h
     internal/audiopluginsscannerregister.cpp
     internal/audiopluginsscannerregister.h
     internal/audiopluginmetareaderregister.cpp
@@ -45,6 +47,10 @@ target_sources(muse_audioplugins PRIVATE
     internal/registeraudiopluginsscenario.cpp
     internal/registeraudiopluginsscenario.h
 )
+
+if (MUSE_MODULE_AUDIOPLUGINS_SCAN_TRACE)
+    target_compile_definitions(muse_audioplugins PRIVATE MUSE_MODULE_AUDIOPLUGINS_SCAN_TRACE)
+endif()
 
 if (MUSE_MODULE_AUDIOPLUGINS_TESTS)
     add_subdirectory(tests)

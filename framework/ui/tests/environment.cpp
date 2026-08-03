@@ -23,10 +23,12 @@
 #include "testing/environment.h"
 
 #include "log.h"
+#include "framework/rcommand/rcommandmodule.h"
 #include "framework/actions/actionsmodule.h"
 
 static muse::testing::SuiteEnvironment ui_senv(
 {
+    new muse::rcommand::RCommandModule(),
     new muse::actions::ActionsModule()
 },
     nullptr,

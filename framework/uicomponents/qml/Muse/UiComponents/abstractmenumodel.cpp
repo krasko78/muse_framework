@@ -21,6 +21,7 @@
  */
 #include "abstractmenumodel.h"
 
+#include "thirdparty/kors_logger/src/log_base.h"
 #include "types/translatablestring.h"
 
 #include "log.h"
@@ -86,11 +87,22 @@ void AbstractMenuModel::handleMenuItem(const QString& itemId)
 
 void AbstractMenuModel::dispatch(const ActionCode& actionCode, const ActionData& args)
 {
+    if (muse::strings::startsWith(actionCode, "command://")) {
+        DO_ASSERT(args.empty());
+        commandDispatcher()->dispatch(rcommand::Command(actionCode));
+        return;
+    }
+
     dispatcher()->dispatch(actionCode, args);
 }
 
 void AbstractMenuModel::dispatch(const muse::actions::ActionQuery& actionQuery)
 {
+    if (actionQuery.uri().scheme() == "command") {
+        commandDispatcher()->dispatch(actionQuery);
+        return;
+    }
+
     dispatcher()->dispatch(actionQuery);
 }
 
@@ -218,6 +230,11 @@ MenuItem* AbstractMenuModel::makeMenu(const TranslatableString& title, const Men
     updateShortcuts(item);
 
     return item;
+}
+
+MenuItem* AbstractMenuModel::makeMenuItem(const muse::rcommand::Command& command, const TranslatableString& title)
+{
+    return makeMenuItem(ActionCode(command.toString()), title);
 }
 
 MenuItem* AbstractMenuModel::makeMenuItem(const ActionCode& actionCode, const TranslatableString& title)

@@ -532,6 +532,8 @@ MenuView {
                                 }
                             }
 
+                            item.navigation.requestActive()
+
                             root.subMenuLoader.parent = item
                             root.subMenuLoader.open(subMenuItems)
                         }

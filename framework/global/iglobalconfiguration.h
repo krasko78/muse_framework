@@ -47,6 +47,21 @@ public:
     //! Like: programs/MuseScore/share
     virtual io::path_t appDataPath() const = 0;
 
+    //! True if `path` is an absolute path located within the application install
+    //! tree, i.e. a file shipped with the app
+    virtual bool isBundledWithApp(const io::path_t& path) const = 0;
+
+    //! Rewrites an absolute path with ${INSTALL_ROOT} token prefix, so it can be used without
+    // referencing the installation directory, e.g. in configuration files
+    virtual io::path_t toBundledPath(const io::path_t& path) const = 0;
+
+    //! True if `path` starts with ${INSTALL_ROOT} token
+    virtual bool isBundledPath(const io::path_t& path) const = 0;
+
+    //! Resolves a bundled path back to an absolute path against the current
+    //! install root
+    virtual io::path_t fromBundledPath(const io::path_t& path) const = 0;
+
     //! NOTE The path to the dir with the app configure files (must be writable, probably private for a user)
     //! Like: user/config/MuseScore
     virtual io::path_t appConfigPath() const = 0;

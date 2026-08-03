@@ -22,7 +22,7 @@
 
 #include "popupviewclosecontroller.h"
 
-#include <QApplication>
+#include <QGuiApplication>
 #include <QQuickWindow>
 
 using namespace muse::uicomponents;
@@ -34,7 +34,7 @@ PopupViewCloseController::PopupViewCloseController(const modularity::ContextPtr&
 
 void PopupViewCloseController::init()
 {
-    connect(qApp, &QApplication::applicationStateChanged, this, &PopupViewCloseController::onApplicationStateChanged);
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, &PopupViewCloseController::onApplicationStateChanged);
 
     interactive()->currentUriAboutToBeChanged().onNotify(this, [this]() {
         notifyAboutClose();

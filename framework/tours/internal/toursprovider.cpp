@@ -19,9 +19,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 #include "toursprovider.h"
 
-#include <QApplication>
+#include <QGuiApplication>
 
 #include "log.h"
 
@@ -35,7 +36,7 @@ ToursProvider::ToursProvider(const modularity::ContextPtr& iocCtx)
 {
     connect(&m_openTimer, &QTimer::timeout, this, &ToursProvider::doShow);
 
-    connect(qApp, &QApplication::applicationStateChanged, this, &ToursProvider::onApplicationStateChanged);
+    connect(qApp, &QGuiApplication::applicationStateChanged, this, &ToursProvider::onApplicationStateChanged);
 }
 
 void ToursProvider::showTour(const Tour& tour)

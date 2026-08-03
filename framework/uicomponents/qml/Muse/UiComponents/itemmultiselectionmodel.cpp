@@ -22,7 +22,7 @@
 
 #include "itemmultiselectionmodel.h"
 
-#include <QApplication>
+#include <QGuiApplication>
 
 using namespace muse::uicomponents;
 
@@ -59,7 +59,7 @@ QList<int> ItemMultiSelectionModel::selectedRows() const
 
 void ItemMultiSelectionModel::select(const QModelIndex& index)
 {
-    Qt::KeyboardModifiers modifiers = QApplication::keyboardModifiers();
+    Qt::KeyboardModifiers modifiers = QGuiApplication::keyboardModifiers();
 
     //! NOTE: always treat simultaneously pressed Ctrl and Shift as Ctrl
     if (modifiers.testFlag(Qt::ShiftModifier) && modifiers.testFlag(Qt::ControlModifier)) {

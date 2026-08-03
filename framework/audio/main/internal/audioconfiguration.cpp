@@ -36,7 +36,9 @@ using namespace muse;
 using namespace muse::audio;
 using namespace muse::audio::synth;
 
-static const audioch_t AUDIO_CHANNELS = 2;
+static constexpr audioch_t AUDIO_CHANNELS = 2;
+static constexpr samples_t DEFAULT_BUFFER_SIZE = 1024;
+static constexpr sample_rate_t DEFAULT_SAMPLE_RATE = 44100;
 
 //TODO: add other setting: audio device etc
 static const Settings::Key AUDIO_DRIVER_KEY("audio", "io/audioDriver");
@@ -52,7 +54,7 @@ static const Settings::Key USER_SOUNDFONTS_PATHS("midi", "application/paths/mySo
 
 void AudioConfiguration::init()
 {
-    settings()->setDefaultValue(AUDIO_BUFFER_SIZE_KEY, Val(1024));
+    settings()->setDefaultValue(AUDIO_BUFFER_SIZE_KEY, Val(static_cast<int>(DEFAULT_BUFFER_SIZE)));
     settings()->valueChanged(AUDIO_BUFFER_SIZE_KEY).onReceive(nullptr, [this](const Val&) {
         m_driverBufferSizeChanged.notify();
     });
@@ -61,6 +63,8 @@ void AudioConfiguration::init()
     settings()->setDefaultValue(AUDIO_DRIVER_KEY, Val("WASAPI"));
 #elif defined(Q_OS_LINUX) || defined(Q_OS_FREEBSD)
     settings()->setDefaultValue(AUDIO_DRIVER_KEY, Val("ALSA"));
+#elif defined(Q_OS_MACOS)
+    settings()->setDefaultValue(AUDIO_DRIVER_KEY, Val("CoreAudio"));
 #endif
     settings()->valueChanged(AUDIO_DRIVER_KEY).onReceive(nullptr, [this](const Val&) {
         m_currentAudioDriverChanged.notify();
@@ -71,7 +75,7 @@ void AudioConfiguration::init()
         m_audioOutputDeviceIdChanged.notify();
     });
 
-    settings()->setDefaultValue(AUDIO_SAMPLE_RATE_KEY, Val(44100));
+    settings()->setDefaultValue(AUDIO_SAMPLE_RATE_KEY, Val(static_cast<int>(DEFAULT_SAMPLE_RATE)));
     settings()->setCanBeManuallyEdited(AUDIO_SAMPLE_RATE_KEY, false, Val(44100), Val(192000));
     settings()->valueChanged(AUDIO_SAMPLE_RATE_KEY).onReceive(nullptr, [this](const Val&) {
         m_driverSampleRateChanged.notify();
@@ -181,6 +185,15 @@ void AudioConfiguration::setSampleRate(unsigned int sampleRate)
 async::Notification AudioConfiguration::sampleRateChanged() const
 {
     return m_driverSampleRateChanged;
+}
+
+OutputSpec AudioConfiguration::defaultOutputSpec() const
+{
+    OutputSpec spec;
+    spec.sampleRate = DEFAULT_SAMPLE_RATE;
+    spec.samplesPerChannel = DEFAULT_BUFFER_SIZE;
+    spec.audioChannelCount = AUDIO_CHANNELS;
+    return spec;
 }
 
 OutputSpec AudioConfiguration::desiredOutputSpec() const

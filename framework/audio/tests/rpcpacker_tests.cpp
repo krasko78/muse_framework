@@ -90,17 +90,16 @@ TEST_F(Audio_RpcPackerTests, AudioResourceMeta)
 {
     AudioResourceMeta origin;
     origin.id = "1234";
-    origin.type = AudioResourceType::NativeEffect;
+    origin.type = "NativeEffect";
     origin.vendor = "muse";
     origin.attributes.insert({ u"key", u"val" });
-    origin.hasNativeEditorSupport = true;
+    origin.attributes.insert({ HAS_NATIVE_EDITOR_SUPPORT_ATTRIBUTE, u"true" });
 
     KNOWN_FIELDS(origin,
                  origin.id,
                  origin.type,
                  origin.vendor,
-                 origin.attributes,
-                 origin.hasNativeEditorSupport);
+                 origin.attributes);
 
     ByteArray data = rpc::RpcPacker::pack(origin);
 
@@ -112,7 +111,7 @@ TEST_F(Audio_RpcPackerTests, AudioResourceMeta)
     EXPECT_TRUE(origin.type == unpacked.type);
     EXPECT_TRUE(origin.vendor == unpacked.vendor);
     EXPECT_TRUE(origin.attributes == unpacked.attributes);
-    EXPECT_TRUE(origin.hasNativeEditorSupport == unpacked.hasNativeEditorSupport);
+    EXPECT_TRUE(hasNativeEditorSupport(origin) == hasNativeEditorSupport(unpacked));
 }
 
 TEST_F(Audio_RpcPackerTests, AudioResourceMetaList)
@@ -124,7 +123,7 @@ TEST_F(Audio_RpcPackerTests, AudioResourceMetaList)
     for (int i = 0; i < count; ++i) {
         AudioResourceMeta meta;
         meta.id = std::to_string(1234567);
-        meta.type = AudioResourceType::MuseSamplerSoundPack;
+        meta.type = "MuseSamplerSoundPack";
         meta.vendor = "MuseSounds";
         meta.attributes = {
             { u"playbackSetupData", u"instrumentSoundId" },

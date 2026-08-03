@@ -24,6 +24,7 @@
 
 #include <QScreen>
 #include <QApplication>
+#include <QOperatingSystemVersion>
 
 using namespace muse::ui;
 

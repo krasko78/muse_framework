@@ -42,7 +42,7 @@ void VstFxProcessor::init(const audio::OutputSpec& spec)
 
     m_outputSpec = spec;
 
-    m_vstAudioClient->init(AudioPluginType::Fx, m_pluginPtr);
+    m_vstAudioClient->init(PluginType::Fx, m_pluginPtr);
 
     auto onPluginLoaded = [this]() {
         m_pluginPtr->updatePluginConfig(m_params.configuration);

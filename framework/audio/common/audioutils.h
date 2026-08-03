@@ -30,15 +30,16 @@ inline AudioResourceMeta makeReverbMeta()
 {
     AudioResourceMeta meta;
     meta.id = MUSE_REVERB_ID;
-    meta.type = AudioResourceType::NativeEffect;
+    meta.type = NATIVE_EFFECT_TYPE_NAME;
     meta.vendor = "Muse";
-    meta.hasNativeEditorSupport = true;
+    meta.attributes.emplace(HAS_NATIVE_EDITOR_SUPPORT_ATTRIBUTE, u"true");
 
     return meta;
 }
 
-inline String audioResourceTypeToString(const AudioResourceType& type)
+inline String audioResourceTypeToString(const muse::audioplugins::PluginType& metaType)
 {
+    AudioResourceType type = resourceTypeFromString(metaType);
     auto search = RESOURCE_TYPE_MAP.find(type);
 
     if (search != RESOURCE_TYPE_MAP.end()) {
@@ -54,7 +55,7 @@ inline String audioSourceName(const AudioInputParams& params)
         return params.resourceMeta.attributeVal(u"museName");
     }
 
-    if (params.resourceMeta.type == audio::AudioResourceType::FluidSoundfont) {
+    if (isResourceType(params.resourceMeta, AudioResourceType::FluidSoundfont)) {
         const String& presetName = params.resourceMeta.attributeVal(synth::PRESET_NAME_ATTRIBUTE);
         if (!presetName.empty()) {
             return presetName;
@@ -84,7 +85,7 @@ inline String audioSourceCategoryName(const AudioInputParams& params)
         return params.resourceMeta.attributeVal(u"museCategory");
     }
 
-    if (params.resourceMeta.type == audio::AudioResourceType::FluidSoundfont) {
+    if (isResourceType(params.resourceMeta, AudioResourceType::FluidSoundfont)) {
         return params.resourceMeta.attributeVal(synth::SOUNDFONT_NAME_ATTRIBUTE);
     }
 
@@ -109,17 +110,6 @@ inline AudioFxCategories audioFxCategoriesFromString(const String& str)
 
 inline bool isOnlineAudioResource(const AudioResourceMeta& meta)
 {
-    const String& attr = meta.attributeVal(u"isOnline");
-    if (attr.empty()) {
-        return false;
-    }
-
-    bool ok = true;
-    const int val = attr.toInt(&ok);
-    if (!ok) {
-        return false;
-    }
-
-    return val == 1;
+    return boolAttribute(meta, u"isOnline");
 }
 }

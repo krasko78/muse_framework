@@ -438,6 +438,11 @@ bool FileSystem::setPermissionsAllowedForAll(const io::path_t& path) const
                                  | QFile::ExeOther);
 }
 
+io::path_t FileSystem::temporaryDirectoryPath() const
+{
+    return QDir::tempPath();
+}
+
 io::path_t FileSystem::canonicalFilePath(const io::path_t& filePath) const
 {
     return QFileInfo(filePath.toQString()).canonicalFilePath();

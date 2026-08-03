@@ -143,15 +143,6 @@ void UiEngine::addSourceImportPath(const QString& path)
 #endif
 }
 
-void UiEngine::updateTheme()
-{
-    if (!m_engine) {
-        return;
-    }
-
-    theme()->update();
-}
-
 QmlApi* UiEngine::api() const
 {
     return m_api;

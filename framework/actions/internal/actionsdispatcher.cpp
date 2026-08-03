@@ -24,8 +24,10 @@
 #include <sstream>
 
 #include "actionable.h"
+#include "global/stringutils.h"
 
 #include "log.h"
+#include "rcommand/commandtypes.h"
 
 using namespace muse::actions;
 using namespace muse::async;
@@ -59,6 +61,11 @@ void ActionsDispatcher::dispatch(const ActionCode& actionCode, const ActionData&
         return;
     }
 
+    if (muse::strings::startsWith(actionCode, rcommand::COMMAND_SCHEME)) {
+        commandDispatcher()->dispatch(rcommand::Command(actionCode));
+        return;
+    }
+
     // code
     auto it = m_clients.find(actionCode);
     if (it == m_clients.end()) {
@@ -71,6 +78,11 @@ void ActionsDispatcher::dispatch(const ActionCode& actionCode, const ActionData&
 
 void ActionsDispatcher::dispatch(const ActionQuery& actionQuery)
 {
+    if (muse::strings::startsWith(actionQuery.uri().scheme(), rcommand::COMMAND_SCHEME)) {
+        commandDispatcher()->dispatch(actionQuery);
+        return;
+    }
+
     //! NOTE Try find full query
     const std::string full = actionQuery.toString();
     ActionCode code = full;

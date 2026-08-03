@@ -49,6 +49,7 @@ Item {
     property string minValueRoleName: "min"
     property string maxValueRoleName: "max"
     property string iconRoleName: "icon"
+    property string iconColorRoleName: "iconColor"
 
     property alias hasSelection: selectionModel.hasSelection
     readonly property var selection: sortFilterProxyModel.mapSelectionToSource(selectionModel.selection)
@@ -288,6 +289,7 @@ Item {
             minValueRoleName: root.minValueRoleName
             maxValueRoleName: root.maxValueRoleName
             iconRoleName: root.iconRoleName
+            iconColorRoleName: root.iconColorRoleName
 
             isSelected: selectionModel.hasSelection && selectionModel.isSelected(modelIndex)
             readOnly: root.readOnly

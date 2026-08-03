@@ -48,6 +48,8 @@ qt_add_qml_module(muse_uicomponents_qml
         iconview.h
         internal/focuslistener.cpp
         internal/focuslistener.h
+        internal/polylinepointstyle.h
+        internal/polylinepointstyle.cpp
         internal/popupviewclosecontroller.cpp
         internal/popupviewclosecontroller.h
         internal/tableviewheader.cpp
@@ -235,6 +237,11 @@ endif()
 
 # Necessary for the auto-generated sources
 target_include_directories(muse_uicomponents_qml PRIVATE internal validators)
+
+target_link_libraries(muse_uicomponents_qml PRIVATE Qt::Qml)
+
+# For widgetview.cpp
+target_link_libraries(muse_uicomponents_qml PRIVATE Qt::Widgets)
 
 if (MUSE_MODULE_UI_TESTS)
     add_subdirectory(tests)

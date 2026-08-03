@@ -37,6 +37,10 @@ if (MUSE_MODULE_INTERACTIVE)
     add_subdirectory(interactive)
 endif()
 
+if (MUSE_MODULE_TOAST)
+    add_subdirectory(toast)
+endif()
+
 if (MUSE_MODULE_DOCKWINDOW)
     if (MUSE_MODULE_DOCKWINDOW_KDDOCKWIDGETS_V2)
         add_subdirectory(dockwindow_v2)
@@ -110,7 +114,11 @@ if (MUSE_MODULE_RCONTROL)
 endif()
 
 if (MUSE_MODULE_SHORTCUTS)
-    add_subdirectory(shortcuts)
+    if (MUSE_MODULE_SHORTCUTS_V2)
+        add_subdirectory(shortcuts_v2)
+    else()
+        add_subdirectory(shortcuts)
+    endif()
 endif()
 
 if (MUSE_MODULE_TOURS)

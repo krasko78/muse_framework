@@ -25,6 +25,7 @@
 
 #include "global/tests/mocks/globalconfigurationmock.h"
 #include "global/tests/mocks/processmock.h"
+#include "global/tests/mocks/filesystemmock.h"
 #include "interactive/tests/mocks/interactivemock.h"
 
 #include "mocks/knownaudiopluginsregistermock.h"
@@ -36,12 +37,13 @@
 #include "translation.h"
 
 using ::testing::_;
+using ::testing::AnyNumber;
+using ::testing::ElementsAre;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ReturnRef;
 
 using namespace muse;
-using namespace muse::audio;
 using namespace muse::audioplugins;
 using namespace muse::io;
 
@@ -53,6 +55,7 @@ protected:
     {
         m_scenario = std::make_shared<RegisterAudioPluginsScenario>(modularity::globalCtx());
         m_globalConfiguration = std::make_shared<NiceMock<GlobalConfigurationMock> >();
+        m_fileSystem = std::make_shared<NiceMock<io::FileSystemMock> >();
         m_interactive = std::make_shared<InteractiveMock>();
         m_process = std::make_shared<ProcessMock>();
         m_scannerRegister = std::make_shared<NiceMock<AudioPluginsScannerRegisterMock> >();
@@ -64,6 +67,7 @@ protected:
         m_metaReaders = { metaReaderMock };
 
         m_scenario->globalConfiguration.set(m_globalConfiguration);
+        m_scenario->fileSystem.set(m_fileSystem);
         m_scenario->interactive.set(m_interactive);
         m_scenario->process.set(m_process);
         m_scenario->knownPluginsRegister.set(m_knownPlugins);
@@ -73,6 +77,12 @@ protected:
         ON_CALL(*m_globalConfiguration, appBinPath())
         .WillByDefault(Return(m_appPath));
 
+        ON_CALL(*m_fileSystem, remove(_, _))
+        .WillByDefault(Return(muse::make_ok()));
+
+        ON_CALL(*m_fileSystem, temporaryDirectoryPath())
+        .WillByDefault(Return(io::path_t("/tmp")));
+
         ON_CALL(*m_scannerRegister, scanners())
         .WillByDefault(ReturnRef(m_scanners));
 
@@ -80,14 +90,33 @@ protected:
         .WillByDefault(ReturnRef(m_metaReaders));
 
         ON_CALL(*metaReaderMock, metaType())
-        .WillByDefault(Return(AudioResourceType::VstPlugin));
+        .WillByDefault(Return("VstPlugin"));
 
         ON_CALL(*metaReaderMock, canReadMeta(_))
         .WillByDefault(Return(true));
+
+        ON_CALL(*m_knownPlugins, setPluginsState(_, _))
+        .WillByDefault(Return(muse::make_ok()));
+
+        ON_CALL(*m_knownPlugins, removePluginsAtPath(_))
+        .WillByDefault(Return(muse::make_ok()));
+
+        ON_CALL(*m_knownPlugins, registerPlugins(_))
+        .WillByDefault(Return(muse::make_ok()));
+
+        ON_CALL(*m_knownPlugins, unregisterPlugins(_))
+        .WillByDefault(Return(muse::make_ok()));
+
+        ON_CALL(*m_knownPlugins, writePluginsTo(_, _))
+        .WillByDefault(Return(muse::make_ok()));
+
+        ON_CALL(*m_knownPlugins, readPluginsFrom(_))
+        .WillByDefault(Return(RetVal<AudioPluginInfoList>::make_ok({})));
     }
 
     std::shared_ptr<RegisterAudioPluginsScenario> m_scenario;
     std::shared_ptr<GlobalConfigurationMock> m_globalConfiguration;
+    std::shared_ptr<io::FileSystemMock> m_fileSystem;
     std::shared_ptr<InteractiveMock> m_interactive;
     std::shared_ptr<ProcessMock> m_process;
     std::shared_ptr<KnownAudioPluginsRegisterMock> m_knownPlugins;
@@ -101,13 +130,10 @@ protected:
 
 inline bool operator==(const AudioPluginInfo& info1, const AudioPluginInfo& info2)
 {
-    bool equal = info1.type == info2.type;
-    equal &= (info1.path == info2.path);
-    equal &= (info1.meta == info2.meta);
-    equal &= (info1.enabled == info2.enabled);
-    equal &= (info1.errorCode == info2.errorCode);
-
-    return equal;
+    return info1.path == info2.path
+           && info1.meta == info2.meta
+           && info1.state == info2.state
+           && info1.errorCode == info2.errorCode;
 }
 }
 
@@ -140,6 +166,12 @@ TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry)
         .WillByDefault(Return(foundPluginPaths));
     }
 
+    AudioPluginInfo incompatiblePluginInfo;
+    incompatiblePluginInfo.path = foundPluginPaths[4];
+    incompatiblePluginInfo.meta.id = io::filename(incompatiblePluginInfo.path).toStdString();
+    incompatiblePluginInfo.state = AudioPluginState::Error;
+    incompatiblePluginInfo.errorCode = -1;
+
     // [GIVEN] Some plugins already exist in the register
     AudioPluginInfoList alreadyRegisteredPlugins;
     for (size_t i = 0; i < 2; ++i) {
@@ -152,45 +184,46 @@ TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry)
     ON_CALL(*m_knownPlugins, pluginInfoList(_))
     .WillByDefault(Return(alreadyRegisteredPlugins));
 
-    for (const AudioPluginInfo& info : alreadyRegisteredPlugins) {
-        ON_CALL(*m_knownPlugins, exists(info.path))
-        .WillByDefault(Return(true));
-    }
-
     // [THEN] The progress bar is shown
-    EXPECT_CALL(*m_interactive, showProgress(muse::trc("audio", "Scanning audio plugins"), _))
+    EXPECT_CALL(*m_interactive, showProgress(muse::trc("audio", "Validating audio plugins"), _))
     .Times(1);
 
-    // [THEN] Already registered plugins are not processed again
-    EXPECT_CALL(*m_process, execute(_, std::vector<std::string> { "--register-audio-plugin", foundPluginPaths[0].toStdString() }))
-    .Times(0);
-    EXPECT_CALL(*m_process, execute(_, std::vector<std::string> { "--register-audio-plugin", foundPluginPaths[1].toStdString() }))
-    .Times(0);
+    // [THEN] Processes started only for unregistered plugins; each gets an
+    // --register-audio-plugin-out file, the main process is the sole cache writer.
+    paths_t alreadyRegisteredPaths { foundPluginPaths[0], foundPluginPaths[1] };
+    for (const path_t& pluginPath : foundPluginPaths) {
+        auto argsMatch = ElementsAre("--register-audio-plugin", pluginPath.toStdString(), "--register-audio-plugin-out", _);
 
-    // [THEN] New compatible plugins are registered
-    EXPECT_CALL(*m_process, execute(m_appPath, std::vector<std::string> { "--register-audio-plugin", foundPluginPaths[2].toStdString() }))
-    .WillOnce(Return(0));
-    EXPECT_CALL(*m_process, execute(m_appPath, std::vector<std::string> { "--register-audio-plugin", foundPluginPaths[3].toStdString() }))
-    .WillOnce(Return(0));
+        if (muse::contains(alreadyRegisteredPaths, pluginPath)) {
+            // Ignore already registered plugins
+            EXPECT_CALL(*m_process, execute(_, argsMatch, _, _))
+            .Times(0);
+        } else if (incompatiblePluginInfo.path == pluginPath) {
+            // Incompatible plugin: subprocess fails, main records the failure
+            EXPECT_CALL(*m_process, execute(m_appPath, argsMatch, _, _))
+            .WillOnce(Return(-1));
+        } else {
+            // Successfully registered plugins
+            EXPECT_CALL(*m_process, execute(m_appPath, argsMatch, _, _))
+            .WillOnce(Return(0));
+        }
+    }
 
-    // [THEN] The incompatible plugin is registered as failed
-    EXPECT_CALL(*m_process, execute(m_appPath, std::vector<std::string> { "--register-audio-plugin", foundPluginPaths[4].toStdString() }))
-    .WillOnce(Return(-1));
-    EXPECT_CALL(*m_process,
-                execute(m_appPath,
-                        std::vector<std::string> { "--register-failed-audio-plugin", foundPluginPaths[4].toStdString(), "--", "-1" }))
-    .WillOnce(Return(0));
-
-    // [THEN] All plugins remain in the register
+    // [THEN] Completed Discovered placeholders are removed in one batch before
+    // scanned results are registered.
     EXPECT_CALL(*m_knownPlugins, unregisterPlugins(_))
-    .Times(0);
+    .WillOnce(Return(make_ok()));
 
-    // [THEN] Reloaded once inside registerNewPlugins, after subprocesses finish writing to disk
+    // [THEN] The register is refreshed
     EXPECT_CALL(*m_knownPlugins, load())
-    .WillOnce(Return(muse::make_ok()));
+    .Times(2)
+    .WillRepeatedly(Return(muse::make_ok()));
 
     // [WHEN] Register new plugins
-    m_scenario->updatePluginsRegistry();
+    Ret ret = m_scenario->updatePluginsRegistry();
+
+    // [THEN] Plugins successfully registered
+    EXPECT_TRUE(ret);
 }
 
 TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_NoNewPlugins)
@@ -221,38 +254,36 @@ TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_NoNe
     ON_CALL(*m_knownPlugins, pluginInfoList(_))
     .WillByDefault(Return(alreadyRegisteredPlugins));
 
-    for (const path_t& pluginPath : foundPluginPaths) {
-        ON_CALL(*m_knownPlugins, exists(pluginPath))
-        .WillByDefault(Return(true));
-    }
-
     // [THEN] Don't register the plugins again
     EXPECT_CALL(*m_process, execute(_, _))
+    .Times(0);
+    EXPECT_CALL(*m_process, execute(_, _, _))
+    .Times(0);
+    EXPECT_CALL(*m_process, execute(_, _, _, _))
     .Times(0);
 
     EXPECT_CALL(*m_interactive, showProgress(_, _))
     .Times(0);
 
-    EXPECT_CALL(*m_knownPlugins, unregisterPlugins(_))
-    .Times(0);
-
     EXPECT_CALL(*m_knownPlugins, load())
-    .Times(0);
+    .WillOnce(Return(muse::make_ok()));
 
     // [WHEN] Try to register the plugins again
-    m_scenario->updatePluginsRegistry();
+    Ret ret = m_scenario->updatePluginsRegistry();
+
+    // [THEN] No error
+    EXPECT_TRUE(ret);
 }
 
 //! See: https://github.com/musescore/MuseScore/issues/16458
-TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_UnregUninstalledPlugins)
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_MarkUninstalledAsMissing)
 {
-    auto createPluginInfo = [](const io::path_t& path) {
+    auto createPluginInfo = [](const io::path_t& path, AudioPluginState state = AudioPluginState::Validated) {
         AudioPluginInfo info;
-        info.type = AudioPluginType::Instrument;
         info.meta.id = io::completeBasename(path).toStdString();
-        info.meta.type = AudioResourceType::VstPlugin;
+        info.meta.type = "VstPlugin";
         info.path = path;
-        info.enabled = true;
+        info.state = state;
         return info;
     };
 
@@ -280,147 +311,236 @@ TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_Unre
         .WillByDefault(Return(foundPluginPaths));
     }
 
-    for (const path_t& path : foundPluginPaths) {
-        ON_CALL(*m_knownPlugins, exists(path))
-        .WillByDefault(Return(true));
-    }
-
-    // [THEN] Unreg the uninstalled plugins
-    AudioResourceIdList uninstalledPluginIdList {
-        knownPlugins[0].meta.id, knownPlugins[1].meta.id
+    // [THEN] Uninstalled plugins transition to Missing (kept in cache)
+    paths_t uninstalledPluginPaths {
+        knownPlugins[0].path, knownPlugins[1].path
     };
 
-    EXPECT_CALL(*m_knownPlugins, unregisterPlugins(uninstalledPluginIdList))
+    EXPECT_CALL(*m_knownPlugins, setPluginsState(uninstalledPluginPaths, AudioPluginState::Missing))
     .WillOnce(Return(make_ok()));
-
-    // [THEN] No new plugins to process
-    EXPECT_CALL(*m_process, execute(_, _))
-    .Times(0);
-
-    EXPECT_CALL(*m_interactive, showProgress(_, _))
-    .Times(0);
-
-    EXPECT_CALL(*m_knownPlugins, load())
-    .Times(0);
-
-    // [WHEN] Update registry
-    m_scenario->updatePluginsRegistry();
-}
-
-//! A multi-component VST can expose several plugins (different IDs) from a single .vst3 path
-//! When that path is still present on disk, none of the components should be re-registered
-TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_SamePathDifferentIds_PluginPresent)
-{
-    path_t sharedPath = "/some/path/MultiPlugin.vst3";
-
-    // [GIVEN] Two already registered components that share the same path
-    AudioPluginInfoList knownPlugins;
-
-    AudioPluginInfo mono;
-    mono.path = sharedPath;
-    mono.meta.id = "MultiPlugin_Mono";
-    knownPlugins.push_back(mono);
-
-    AudioPluginInfo stereo;
-    stereo.path = sharedPath;
-    stereo.meta.id = "MultiPlugin_Stereo";
-    knownPlugins.push_back(stereo);
-
-    ON_CALL(*m_knownPlugins, pluginInfoList(_))
-    .WillByDefault(Return(knownPlugins));
-
-    // [GIVEN] Scanner still finds the shared path
-    for (const IAudioPluginsScannerPtr& scanner : m_scanners) {
-        AudioPluginsScannerMock* mock = dynamic_cast<AudioPluginsScannerMock*>(scanner.get());
-        ASSERT_TRUE(mock);
-
-        ON_CALL(*mock, scanPlugins(_))
-        .WillByDefault(Return(paths_t { sharedPath }));
-    }
-
-    ON_CALL(*m_knownPlugins, exists(sharedPath))
-    .WillByDefault(Return(true));
-
-    // [THEN] Neither component is re-registered or unregistered
-    EXPECT_CALL(*m_process, execute(_, _))
-    .Times(0);
-
-    EXPECT_CALL(*m_interactive, showProgress(_, _))
-    .Times(0);
 
     EXPECT_CALL(*m_knownPlugins, unregisterPlugins(_))
     .Times(0);
 
     EXPECT_CALL(*m_knownPlugins, load())
-    .Times(0);
+    .WillOnce(Return(muse::make_ok()));
 
     // [WHEN] Update registry
-    m_scenario->updatePluginsRegistry();
+    Ret ret = m_scenario->updatePluginsRegistry();
+
+    // [THEN] Successfully transitioned
+    EXPECT_TRUE(ret);
 }
 
-//! When a multi-component plugin is uninstalled, ALL of its component IDs must be unregistered
-TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_SamePathDifferentIds_PluginMissing)
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, ScanPlugins_FormerlyMissingFoundAgainIsRevalidated)
 {
-    path_t sharedPath = "/some/path/MultiPlugin.vst3";
+    auto createPluginInfo = [](const io::path_t& path, AudioPluginState state) {
+        AudioPluginInfo info;
+        info.meta.id = io::completeBasename(path).toStdString();
+        info.meta.type = "VstPlugin";
+        info.path = path;
+        info.state = state;
+        return info;
+    };
 
-    // [GIVEN] Two already registered components that share the same path
+    // [GIVEN] One Missing entry that reappears, one untouched Validated entry
     AudioPluginInfoList knownPlugins;
-
-    AudioPluginInfo mono;
-    mono.path = sharedPath;
-    mono.meta.id = "MultiPlugin_Mono";
-    knownPlugins.push_back(mono);
-
-    AudioPluginInfo stereo;
-    stereo.path = sharedPath;
-    stereo.meta.id = "MultiPlugin_Stereo";
-    knownPlugins.push_back(stereo);
+    knownPlugins.push_back(createPluginInfo("/some/path/AAA.vst3", AudioPluginState::Missing));
+    knownPlugins.push_back(createPluginInfo("/some/path/BBB.vst3", AudioPluginState::Validated));
 
     ON_CALL(*m_knownPlugins, pluginInfoList(_))
     .WillByDefault(Return(knownPlugins));
 
-    // [GIVEN] Scanner finds nothing — the plugin has been uninstalled
+    // [GIVEN] Scanner now finds both
+    paths_t foundPluginPaths {
+        "/some/path/AAA.vst3",
+        "/some/path/BBB.vst3",
+    };
+
     for (const IAudioPluginsScannerPtr& scanner : m_scanners) {
         AudioPluginsScannerMock* mock = dynamic_cast<AudioPluginsScannerMock*>(scanner.get());
         ASSERT_TRUE(mock);
 
         ON_CALL(*mock, scanPlugins(_))
-        .WillByDefault(Return(paths_t {}));
+        .WillByDefault(Return(foundPluginPaths));
     }
 
-    // [THEN] Both component IDs are unregistered
-    AudioResourceIdList expectedIds { mono.meta.id, stereo.meta.id };
-    EXPECT_CALL(*m_knownPlugins, unregisterPlugins(expectedIds))
-    .WillOnce(Return(make_ok()));
+    // [WHEN] Scanning
+    const PluginScanResult result = m_scenario->scanPlugins();
 
-    EXPECT_CALL(*m_process, execute(_, _))
-    .Times(0);
-
-    EXPECT_CALL(*m_interactive, showProgress(_, _))
-    .Times(0);
-
-    EXPECT_CALL(*m_knownPlugins, load())
-    .Times(0);
-
-    // [WHEN] Update registry
-    m_scenario->updatePluginsRegistry();
+    // [THEN] The reappeared plugin is re-validated rather than trusted back
+    // to Validated; the untouched Validated plugin is left alone.
+    EXPECT_TRUE(muse::contains(result.newPluginPaths, path_t("/some/path/AAA.vst3")));
+    EXPECT_FALSE(muse::contains(result.newPluginPaths, path_t("/some/path/BBB.vst3")));
+    EXPECT_TRUE(result.missingPluginPaths.empty());
 }
 
-TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, RegisterPlugin)
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_MissingMultiPluginBinaryReportedOnceByPath)
 {
-    // [GIVEN] Some plugin we want to register
+    auto createPluginInfo = [](const io::path_t& path, const PluginResourceId& id, AudioPluginState state) {
+        AudioPluginInfo info;
+        info.meta.id = id;
+        info.meta.type = "VstPlugin";
+        info.path = path;
+        info.state = state;
+        return info;
+    };
+
+    // [GIVEN] One path hosting two plugin ids (shell bundle), plus a standalone plugin
+    const io::path_t shellPath = "/some/path/SHELL.vst3";
+    const io::path_t soloPath = "/some/path/SOLO.vst3";
+
+    AudioPluginInfoList knownPlugins;
+    knownPlugins.push_back(createPluginInfo(shellPath, "Shell FxA", AudioPluginState::Validated));
+    knownPlugins.push_back(createPluginInfo(shellPath, "Shell FxB", AudioPluginState::Validated));
+    knownPlugins.push_back(createPluginInfo(soloPath, "Solo Fx", AudioPluginState::Validated));
+
+    ON_CALL(*m_knownPlugins, pluginInfoList(_))
+    .WillByDefault(Return(knownPlugins));
+
+    // [GIVEN] The scanner no longer finds the shell binary; the solo plugin stays.
+    paths_t foundPluginPaths { soloPath };
+
+    for (const IAudioPluginsScannerPtr& scanner : m_scanners) {
+        AudioPluginsScannerMock* mock = dynamic_cast<AudioPluginsScannerMock*>(scanner.get());
+        ASSERT_TRUE(mock);
+
+        ON_CALL(*mock, scanPlugins(_))
+        .WillByDefault(Return(foundPluginPaths));
+    }
+
+    // [THEN] The vanished binary is reported once by path; flipping every id
+    // under it is the register's job.
+    paths_t expectedMissing { shellPath };
+
+    EXPECT_CALL(*m_knownPlugins, setPluginsState(expectedMissing, AudioPluginState::Missing))
+    .WillOnce(Return(make_ok()));
+
+    EXPECT_CALL(*m_knownPlugins, load())
+    .WillOnce(Return(make_ok()));
+
+    Ret ret = m_scenario->updatePluginsRegistry();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, ScanPlugins_FormerlyMissingMultiIdBinaryQueuedOnce)
+{
+    auto createPluginInfo = [](const io::path_t& path, const PluginResourceId& id, AudioPluginState state) {
+        AudioPluginInfo info;
+        info.meta.id = id;
+        info.meta.type = "VstPlugin";
+        info.path = path;
+        info.state = state;
+        return info;
+    };
+
+    // [GIVEN] A bundle whose two ids are both currently Missing
+    const io::path_t shellPath = "/some/path/SHELL.vst3";
+
+    AudioPluginInfoList knownPlugins;
+    knownPlugins.push_back(createPluginInfo(shellPath, "Shell FxA", AudioPluginState::Missing));
+    knownPlugins.push_back(createPluginInfo(shellPath, "Shell FxB", AudioPluginState::Missing));
+
+    ON_CALL(*m_knownPlugins, pluginInfoList(_))
+    .WillByDefault(Return(knownPlugins));
+
+    // [GIVEN] The scanner finds the binary again.
+    paths_t foundPluginPaths { shellPath };
+
+    for (const IAudioPluginsScannerPtr& scanner : m_scanners) {
+        AudioPluginsScannerMock* mock = dynamic_cast<AudioPluginsScannerMock*>(scanner.get());
+        ASSERT_TRUE(mock);
+
+        ON_CALL(*mock, scanPlugins(_))
+        .WillByDefault(Return(foundPluginPaths));
+    }
+
+    // [WHEN] Scanning
+    const PluginScanResult result = m_scenario->scanPlugins();
+
+    // [THEN] The reappeared binary is queued once for re-validation; nothing
+    // is trusted back to Validated, nothing is left Missing.
+    EXPECT_EQ(result.newPluginPaths, paths_t { shellPath });
+    EXPECT_TRUE(result.missingPluginPaths.empty());
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, UpdatePluginsRegistry_LeftoverDiscoveredRevalidates)
+{
+    // [GIVEN] A leftover Discovered entry; the scanner still sees the path on disk
+    auto createPluginInfo = [](const io::path_t& path, AudioPluginState state) {
+        AudioPluginInfo info;
+        info.meta.id = io::completeBasename(path).toStdString();
+        info.meta.type = "VstPlugin";
+        info.path = path;
+        info.state = state;
+        return info;
+    };
+
+    AudioPluginInfoList knownPlugins;
+    knownPlugins.push_back(createPluginInfo("/some/path/CRASHED.vst3", AudioPluginState::Discovered));
+
+    ON_CALL(*m_knownPlugins, pluginInfoList(_))
+    .WillByDefault(Return(knownPlugins));
+
+    paths_t foundPluginPaths { "/some/path/CRASHED.vst3" };
+
+    for (const IAudioPluginsScannerPtr& scanner : m_scanners) {
+        AudioPluginsScannerMock* mock = dynamic_cast<AudioPluginsScannerMock*>(scanner.get());
+        ASSERT_TRUE(mock);
+
+        ON_CALL(*mock, scanPlugins(_))
+        .WillByDefault(Return(foundPluginPaths));
+    }
+
+    // [THEN] The Discovered path is re-validated, not marked Missing
+    EXPECT_CALL(*m_knownPlugins, setPluginsState(paths_t {}, AudioPluginState::Missing))
+    .WillOnce(Return(make_ok()));
+
+    // [THEN] A Discovered placeholder is written before spawning the subprocess;
+    // completed results land in a later registerPlugins call (the catch-all below).
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(_))
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(make_ok()));
+    AudioPluginInfo expectedPlaceholder = createPluginInfo("/some/path/CRASHED.vst3",
+                                                           AudioPluginState::Discovered);
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(AudioPluginInfoList { expectedPlaceholder }))
+    .WillOnce(Return(make_ok()));
+
+    // [THEN] The path is cleared before writing the Discovered placeholder;
+    // completed placeholders are removed in one batch.
+    EXPECT_CALL(*m_knownPlugins, removePluginsAtPath(io::path_t("/some/path/CRASHED.vst3")))
+    .WillOnce(Return(make_ok()));
+
+    EXPECT_CALL(*m_process, execute(m_appPath,
+                                    ElementsAre("--register-audio-plugin", "/some/path/CRASHED.vst3", "--register-audio-plugin-out", _), _,
+                                    _))
+    .WillOnce(Return(0));
+
+    // [THEN] register loaded twice (once after registerNewPlugins, once at end of updatePluginsRegistry)
+    EXPECT_CALL(*m_knownPlugins, load())
+    .Times(2)
+    .WillRepeatedly(Return(make_ok()));
+
+    Ret ret = m_scenario->updatePluginsRegistry();
+    EXPECT_TRUE(ret);
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, ValidatePlugin)
+{
+    // [GIVEN] A plugin to validate out-of-process and the result file to write
     path_t pluginPath = "/some/test/path/to/plugin/AAA.vst3";
+    path_t outputFile = "/tmp/scan_result.json";
 
-    AudioResourceMetaList metaList;
+    PluginMetaList metaList;
 
-    AudioResourceMeta pluginMeta1;
+    PluginMeta pluginMeta1;
     pluginMeta1.id = "Mono plugin";
-    pluginMeta1.attributes.insert({ muse::audio::CATEGORIES_ATTRIBUTE, u"Fx|Mono" });
+    pluginMeta1.attributes.insert({ String(u"categories"), u"Fx|Mono" });
     metaList.push_back(pluginMeta1);
 
-    AudioResourceMeta pluginMeta2;
+    PluginMeta pluginMeta2;
     pluginMeta2.id = "Stereo plugin";
-    pluginMeta2.attributes.insert({ muse::audio::CATEGORIES_ATTRIBUTE, u"Fx|Stereo" });
+    pluginMeta2.attributes.insert({ String(u"categories"), u"Fx|Stereo" });
     metaList.push_back(pluginMeta2);
 
     ASSERT_FALSE(m_metaReaders.empty());
@@ -428,51 +548,291 @@ TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, RegisterPlugin)
     ASSERT_TRUE(mock);
 
     ON_CALL(*mock, readMeta(pluginPath))
-    .WillByDefault(Return(RetVal<AudioResourceMetaList>::make_ok(metaList)));
+    .WillByDefault(Return(RetVal<PluginMetaList>::make_ok(metaList)));
 
-    // [THEN] The plugin has been registered
+    // [THEN] The validated metadata is written to the result file
     AudioPluginInfoList expectedInfoList;
     expectedInfoList.reserve(metaList.size());
 
-    for (const AudioResourceMeta& meta : metaList) {
+    for (const PluginMeta& meta : metaList) {
         AudioPluginInfo expectedPluginInfo;
-        expectedPluginInfo.type = AudioPluginType::Fx;
         expectedPluginInfo.meta = meta;
         expectedPluginInfo.path = pluginPath;
-        expectedPluginInfo.enabled = true;
+        expectedPluginInfo.state = AudioPluginState::Validated;
         expectedPluginInfo.errorCode = 0;
         expectedInfoList.emplace_back(std::move(expectedPluginInfo));
     }
 
-    EXPECT_CALL(*m_knownPlugins, registerPlugins(expectedInfoList))
-    .WillOnce(Return(true));
+    EXPECT_CALL(*m_knownPlugins, writePluginsTo(outputFile, expectedInfoList))
+    .WillOnce(Return(make_ok()));
 
-    // [WHEN] Register the plugin
-    Ret ret = m_scenario->registerPlugin(pluginPath);
+    // [THEN] The subprocess does not touch the cache; the main process owns it
+    EXPECT_CALL(*m_knownPlugins, removePluginsAtPath(_))
+    .Times(0);
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(_))
+    .Times(0);
 
-    // [THEN] The plugin successfully registered
+    // [WHEN] Validate the plugin
+    Ret ret = m_scenario->validatePlugin(pluginPath, outputFile);
+
+    // [THEN] Validation succeeded
     EXPECT_TRUE(ret);
 }
 
-TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, RegisterFailedPlugin)
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, RegisterPlugin)
 {
-    // [GIVEN] Some incompatible plugin we want to register
+    // [GIVEN] A trusted plugin registered in-process (no subprocess)
     path_t pluginPath = "/some/test/path/to/plugin/AAA.vst3";
 
-    // [THEN] The plugin has been registered
+    PluginMetaList metaList;
+    PluginMeta pluginMeta;
+    pluginMeta.id = "Mono plugin";
+    pluginMeta.attributes.insert({ String(u"categories"), u"Fx|Mono" });
+    metaList.push_back(pluginMeta);
+
+    ASSERT_FALSE(m_metaReaders.empty());
+    AudioPluginMetaReaderMock* mock = dynamic_cast<AudioPluginMetaReaderMock*>(m_metaReaders[0].get());
+    ASSERT_TRUE(mock);
+
+    ON_CALL(*mock, readMeta(pluginPath))
+    .WillByDefault(Return(RetVal<PluginMetaList>::make_ok(metaList)));
+
     AudioPluginInfo expectedPluginInfo;
-    expectedPluginInfo.meta.id = io::completeBasename(pluginPath).toStdString();
-    expectedPluginInfo.meta.type = AudioResourceType::VstPlugin;
+    expectedPluginInfo.meta = pluginMeta;
     expectedPluginInfo.path = pluginPath;
-    expectedPluginInfo.enabled = false;
-    expectedPluginInfo.errorCode = -42;
+    expectedPluginInfo.state = AudioPluginState::Validated;
 
+    // [THEN] The placeholder is cleared, then the validated entry is written
+    // straight to the register (no result file).
+    ::testing::InSequence seq;
+    EXPECT_CALL(*m_knownPlugins, removePluginsAtPath(pluginPath))
+    .WillOnce(Return(make_ok()));
     EXPECT_CALL(*m_knownPlugins, registerPlugins(AudioPluginInfoList { expectedPluginInfo }))
-    .WillOnce(Return(true));
+    .WillOnce(Return(make_ok()));
+    EXPECT_CALL(*m_knownPlugins, writePluginsTo(_, _))
+    .Times(0);
 
-    // [WHEN] Register the incompatible plugin
-    Ret ret = m_scenario->registerFailedPlugin(pluginPath, expectedPluginInfo.errorCode);
+    // [WHEN] Register the plugin in-process
+    Ret ret = m_scenario->registerPlugin(pluginPath);
 
-    // [THEN] The plugin successfully registered
+    // [THEN] Registration succeeded
     EXPECT_TRUE(ret);
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, FailedValidationRecordsErrorEntry)
+{
+    // [GIVEN] A new plugin whose subprocess validation fails
+    path_t pluginPath = "/some/test/path/to/plugin/AAA.vst3";
+    paths_t paths { pluginPath };
+
+    ON_CALL(*m_knownPlugins, load())
+    .WillByDefault(Return(make_ok()));
+
+    // [GIVEN] The subprocess exits with a failure code
+    EXPECT_CALL(*m_process, execute(m_appPath,
+                                    ElementsAre("--register-audio-plugin",
+                                                pluginPath.toStdString(), "--register-audio-plugin-out", _), _, _))
+    .WillOnce(Return(-42));
+
+    // [THEN] The main process records the Error entry itself (no second
+    // subprocess), with the basename as id and the exit code.
+    AudioPluginInfo expectedError;
+    expectedError.meta.id = io::completeBasename(pluginPath).toStdString();
+    expectedError.meta.type = "VstPlugin";
+    expectedError.path = pluginPath;
+    expectedError.state = AudioPluginState::Error;
+    expectedError.errorCode = -42;
+
+    // the placeholder write is absorbed by this catch-all; the Error entry
+    // below is the assertion
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(_))
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(make_ok()));
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(AudioPluginInfoList { expectedError }))
+    .WillOnce(Return(make_ok()));
+
+    // [WHEN] Register the new plugin with validation enabled
+    EXPECT_TRUE(m_scenario->registerNewPlugins(paths, /*validate*/ true));
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, TimedOutValidationRecordsErrorEntry)
+{
+    // [GIVEN] A new plugin whose subprocess validation times out
+    path_t pluginPath = "/some/test/path/to/plugin/MuseHub.vst3";
+    paths_t paths { pluginPath };
+
+    ON_CALL(*m_knownPlugins, load())
+    .WillByDefault(Return(make_ok()));
+
+    // [GIVEN] The subprocess wrapper killed the hung validator
+    EXPECT_CALL(*m_process, execute(m_appPath,
+                                    ElementsAre("--register-audio-plugin",
+                                                pluginPath.toStdString(), "--register-audio-plugin-out", _), _, _))
+    .WillOnce(Return(muse::IProcess::ExecuteTimeoutCode));
+
+    // [THEN] The plugin is recorded as failed with the timeout code
+    AudioPluginInfo expectedError;
+    expectedError.meta.id = io::completeBasename(pluginPath).toStdString();
+    expectedError.meta.type = "VstPlugin";
+    expectedError.path = pluginPath;
+    expectedError.state = AudioPluginState::Error;
+    expectedError.errorCode = muse::IProcess::ExecuteTimeoutCode;
+
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(_))
+    .Times(AnyNumber())
+    .WillRepeatedly(Return(make_ok()));
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(AudioPluginInfoList { expectedError }))
+    .WillOnce(Return(make_ok()));
+
+    EXPECT_TRUE(m_scenario->registerNewPlugins(paths, /*validate*/ true));
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, CanceledValidationDoesNotRecordErrorEntry)
+{
+    // [GIVEN] A new plugin is being validated when the user cancels scanning.
+    path_t pluginPath = "/some/test/path/to/plugin/Canceled.vst3";
+    paths_t paths { pluginPath };
+
+    ON_CALL(*m_knownPlugins, load())
+    .WillByDefault(Return(make_ok()));
+
+    // init() wires the progress cancellation notification to m_aborted.
+    m_scenario->init();
+
+    Progress progress;
+    EXPECT_CALL(*m_interactive, showProgress(_, _))
+    .WillOnce(::testing::SaveArg<1>(&progress));
+
+    EXPECT_CALL(*m_knownPlugins, removePluginsAtPath(pluginPath))
+    .WillOnce(Return(make_ok()));
+
+    // Only the Discovered placeholder should be registered. The canceled
+    // validator must not be converted into an Error cache entry.
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(_))
+    .Times(1)
+    .WillOnce(Return(make_ok()));
+    EXPECT_CALL(*m_knownPlugins, unregisterPlugins(_))
+    .Times(0);
+    EXPECT_CALL(*m_knownPlugins, readPluginsFrom(_))
+    .Times(0);
+
+    EXPECT_CALL(*m_process, execute(m_appPath,
+                                    ElementsAre("--register-audio-plugin",
+                                                pluginPath.toStdString(), "--register-audio-plugin-out", _), _, _))
+    .WillOnce([&progress](const std::string&, const std::vector<std::string>&, int,
+                          const std::function<bool()>& shouldCancel) {
+        progress.cancel();
+        EXPECT_TRUE(shouldCancel());
+        return IProcess::ExecuteCanceledCode;
+    });
+
+    EXPECT_TRUE(m_scenario->registerNewPlugins(paths, /*validate*/ true));
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, RegisterNewPlugins_ValidateFalsePersistsDiscoveredOnly)
+{
+    // [GIVEN] Two paths recorded without validating ("Skip this time")
+    paths_t paths {
+        "/some/path/AAA.vst3",
+        "/some/path/BBB.vst3",
+    };
+
+    // [THEN] One removePluginsAtPath per path, then a single batch
+    // registerPlugins of the Discovered placeholders.
+    EXPECT_CALL(*m_knownPlugins, removePluginsAtPath(io::path_t("/some/path/AAA.vst3")))
+    .WillOnce(Return(make_ok()));
+    EXPECT_CALL(*m_knownPlugins, removePluginsAtPath(io::path_t("/some/path/BBB.vst3")))
+    .WillOnce(Return(make_ok()));
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(_))
+    .WillOnce(Return(make_ok()));
+
+    // [THEN] No out-of-process validation: no subprocess, no progress dialog.
+    EXPECT_CALL(*m_process, execute(_, _))
+    .Times(0);
+    EXPECT_CALL(*m_process, execute(_, _, _))
+    .Times(0);
+    EXPECT_CALL(*m_process, execute(_, _, _, _))
+    .Times(0);
+    EXPECT_CALL(*m_interactive, showProgress(_, _))
+    .Times(0);
+
+    // [THEN] Final load() resyncs the register.
+    EXPECT_CALL(*m_knownPlugins, load())
+    .WillOnce(Return(make_ok()));
+
+    // [WHEN] Register with validation deferred
+    EXPECT_TRUE(m_scenario->registerNewPlugins(paths, /*validate*/ false));
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, RegisterNewPlugins_MainAppliesEachResult)
+{
+    // [GIVEN] Three new plugin paths to scan
+    paths_t paths {
+        "/some/path/AAA.vst3",
+        "/some/path/BBB.vst3",
+        "/some/path/CCC.vst3",
+    };
+
+    // [THEN] One removePluginsAtPath per path; completed placeholders are
+    // removed in one unregisterPlugins batch.
+    EXPECT_CALL(*m_knownPlugins, removePluginsAtPath(_))
+    .Times(3)
+    .WillRepeatedly(Return(make_ok()));
+
+    EXPECT_CALL(*m_knownPlugins, unregisterPlugins(_))
+    .WillOnce(Return(make_ok()));
+
+    // [THEN] registerPlugins is called once for the placeholder batch plus once
+    // for the collected subprocess results.
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(_))
+    .Times(2)
+    .WillRepeatedly(Return(make_ok()));
+
+    // [THEN] One subprocess invocation per path, each handed an --register-audio-plugin-out file
+    for (const path_t& path : paths) {
+        EXPECT_CALL(*m_process, execute(m_appPath,
+                                        ElementsAre("--register-audio-plugin", path.toStdString(), "--register-audio-plugin-out", _), _, _))
+        .WillOnce(Return(0));
+    }
+
+    // [THEN] Each successful result is read back from its file
+    EXPECT_CALL(*m_knownPlugins, readPluginsFrom(_))
+    .Times(3)
+    .WillRepeatedly(Return(RetVal<AudioPluginInfoList>::make_ok({})));
+
+    EXPECT_CALL(*m_interactive, showProgress(_, _))
+    .Times(1);
+
+    EXPECT_CALL(*m_knownPlugins, load())
+    .WillOnce(Return(make_ok()));
+
+    // [WHEN] Register with validation enabled
+    EXPECT_TRUE(m_scenario->registerNewPlugins(paths, /*validate*/ true));
+}
+
+TEST_F(AudioPlugins_RegisterAudioPluginsScenarioTest, RegisterNewPlugins_TrailingSlashPathGetsNonEmptyId)
+{
+    // [GIVEN] An LV2 "<uri>@<bundle>/" composite path: completeBasename() is
+    // empty, and load() would reject a row with an empty id.
+    const path_t lv2Path = "http://calf.sourceforge.net/plugins/Analyzer@file:///usr/lib/lv2/calf.lv2/";
+    paths_t paths { lv2Path };
+
+    ON_CALL(*m_knownPlugins, removePluginsAtPath(_))
+    .WillByDefault(Return(make_ok()));
+    ON_CALL(*m_knownPlugins, load())
+    .WillByDefault(Return(make_ok()));
+
+    // [THEN] Capture the persisted Discovered placeholder
+    AudioPluginInfoList persisted;
+    EXPECT_CALL(*m_knownPlugins, registerPlugins(_))
+    .WillOnce(::testing::DoAll(::testing::SaveArg<0>(&persisted), Return(make_ok())));
+
+    // [WHEN] Register with validation deferred (persistDiscoveredPlaceholders only)
+    EXPECT_TRUE(m_scenario->registerNewPlugins(paths, /*validate*/ false));
+
+    // [THEN] The placeholder id falls back to the full path, not empty
+    ASSERT_EQ(persisted.size(), size_t(1));
+    EXPECT_FALSE(persisted.front().meta.id.empty());
+    EXPECT_EQ(persisted.front().meta.id, lv2Path.toStdString());
+    EXPECT_EQ(persisted.front().state, AudioPluginState::Discovered);
 }

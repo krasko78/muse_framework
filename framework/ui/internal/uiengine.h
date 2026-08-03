@@ -81,7 +81,6 @@ public:
     Q_INVOKABLE QStringList allTextFonts() const;
 
     // IUiEngine
-    void updateTheme() override;
     QQmlApplicationEngine* qmlAppEngine() const override;
     QQmlEngine* qmlEngine() const override;
     void quit() override;

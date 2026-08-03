@@ -289,3 +289,8 @@ muse::Ret MemFileSystem::isWritable(const muse::io::path_t& /*path*/) const
 {
     return muse::make_ok();
 }
+
+muse::io::path_t MemFileSystem::temporaryDirectoryPath() const
+{
+    return "/tmp";
+}

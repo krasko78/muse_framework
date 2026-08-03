@@ -26,16 +26,23 @@
 #include "audioplugins/internal/knownaudiopluginsregister.h"
 
 #include "global/tests/mocks/filesystemmock.h"
+#include "global/tests/mocks/globalconfigurationmock.h"
 #include "mocks/audiopluginsconfigurationmock.h"
+#include "mocks/knownaudiopluginsmigrationregistermock.h"
 
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ::testing::ReturnRef;
 
 using namespace muse;
 using namespace muse::audioplugins;
-using namespace muse::audio;
 using namespace muse::io;
+
+namespace {
+const String kRuntimeAttrKey(u"playbackSetupData");
+const String kRuntimeAttrValue(u"general");
+}
 
 namespace muse::audioplugins {
 class AudioPlugins_KnownAudioPluginsRegisterTest : public ::testing::Test
@@ -46,19 +53,30 @@ protected:
         m_knownPlugins = std::make_shared<KnownAudioPluginsRegister>();
         m_fileSystem = std::make_shared<NiceMock<FileSystemMock> >();
         m_configuration = std::make_shared<NiceMock<AudioPluginsConfigurationMock> >();
+        m_migrations = std::make_shared<NiceMock<KnownAudioPluginsMigrationRegisterMock> >();
+        m_globalConfiguration = std::make_shared<NiceMock<GlobalConfigurationMock> >();
 
         m_knownPlugins->fileSystem.set(m_fileSystem);
         m_knownPlugins->configuration.set(m_configuration);
+        m_knownPlugins->migrations.set(m_migrations);
+        m_knownPlugins->globalConfiguration.set(m_globalConfiguration);
 
         m_knownAudioPluginsFilePath = "/test/some dir/known_audio_plugins.json";
         ON_CALL(*m_configuration, knownAudioPluginsFilePath())
         .WillByDefault(Return(m_knownAudioPluginsFilePath));
+
+        m_runtimeDefaults = PluginAttributes { { kRuntimeAttrKey, kRuntimeAttrValue } };
+        ON_CALL(*m_configuration, runtimeAttributeDefaults())
+        .WillByDefault(ReturnRef(m_runtimeDefaults));
+
+        ON_CALL(*m_migrations, migrate(_, _, _))
+        .WillByDefault(Return(muse::make_ok()));
     }
 
     ByteArray pluginInfoListToJson(const std::vector<AudioPluginInfo>& infoList) const
     {
-        const std::map<AudioResourceType, std::string> RESOURCE_TYPE_TO_STR {
-            { AudioResourceType::VstPlugin, "VstPlugin" },
+        const std::map<PluginType, std::string> RESOURCE_TYPE_TO_STR {
+            { "VstPlugin", "VstPlugin" },
         };
 
         JsonArray array;
@@ -66,7 +84,7 @@ protected:
         for (const AudioPluginInfo& info : infoList) {
             JsonObject attributesObj;
             for (auto it = info.meta.attributes.cbegin(); it != info.meta.attributes.cend(); ++it) {
-                if (it->first == audio::PLAYBACK_SETUP_DATA_ATTRIBUTE) {
+                if (it->first == kRuntimeAttrKey) {
                     continue;
                 }
 
@@ -76,7 +94,6 @@ protected:
             JsonObject metaObj;
             metaObj.set("id", info.meta.id);
             metaObj.set("type", muse::value(RESOURCE_TYPE_TO_STR, info.meta.type, "Undefined"));
-            metaObj.set("hasNativeEditorSupport", info.meta.hasNativeEditorSupport);
 
             if (!info.meta.vendor.empty()) {
                 metaObj.set("vendor", info.meta.vendor);
@@ -89,7 +106,7 @@ protected:
             JsonObject mainObj;
             mainObj.set("meta", metaObj);
             mainObj.set("path", info.path.toStdString());
-            mainObj.set("enabled", info.enabled);
+            mainObj.set("state", audioPluginStateName(info.state));
 
             if (info.errorCode != 0) {
                 mainObj.set("errorCode", info.errorCode);
@@ -98,7 +115,11 @@ protected:
             array << mainObj;
         }
 
-        return JsonDocument(array).toJson();
+        JsonObject root;
+        root.set("version", CURRENT_KNOWN_AUDIO_PLUGINS_VERSION);
+        root.set("plugins", array);
+
+        return JsonDocument(root).toJson();
     }
 
     std::vector<AudioPluginInfo> setupTestData()
@@ -106,39 +127,37 @@ protected:
         std::vector<AudioPluginInfo> plugins;
 
         AudioPluginInfo pluginInfo1;
-        pluginInfo1.type = AudioPluginType::Fx;
         pluginInfo1.path = "/some/path/to/vst/plugin/AAA.vst3";
         pluginInfo1.meta.id = "AAA";
-        pluginInfo1.meta.type = AudioResourceType::VstPlugin;
+        pluginInfo1.meta.type = "VstPlugin";
         pluginInfo1.meta.vendor = "Some vendor";
-        pluginInfo1.meta.attributes = { { audio::CATEGORIES_ATTRIBUTE, u"Fx|Reverb" },
-            { audio::PLAYBACK_SETUP_DATA_ATTRIBUTE, mpe::GENERIC_SETUP_DATA_STRING } };
-        pluginInfo1.enabled = true;
+        pluginInfo1.meta.attributes = { { String(u"categories"), u"Fx|Reverb" },
+            { String(u"hasNativeEditorSupport"), u"true" },
+            { kRuntimeAttrKey, kRuntimeAttrValue } };
+        pluginInfo1.state = AudioPluginState::Validated;
         plugins.push_back(pluginInfo1);
 
         AudioPluginInfo pluginInfo2;
-        pluginInfo2.type = AudioPluginType::Fx;
         pluginInfo2.path = "/some/path/to/vst/plugin/BBB.vst3";
         pluginInfo2.meta.id = "BBB";
-        pluginInfo2.meta.type = AudioResourceType::VstPlugin;
+        pluginInfo2.meta.type = "VstPlugin";
         pluginInfo2.meta.vendor = "Another vendor";
-        pluginInfo2.meta.attributes = { { audio::CATEGORIES_ATTRIBUTE, u"Fx|Distortion" },
-            { audio::PLAYBACK_SETUP_DATA_ATTRIBUTE, mpe::GENERIC_SETUP_DATA_STRING } };
-        pluginInfo2.enabled = true;
+        pluginInfo2.meta.attributes = { { String(u"categories"), u"Fx|Distortion" },
+            { kRuntimeAttrKey, kRuntimeAttrValue } };
+        pluginInfo2.state = AudioPluginState::Validated;
         plugins.push_back(pluginInfo2);
 
-        AudioPluginInfo disabledPluginInfo;
-        disabledPluginInfo.type = AudioPluginType::Instrument;
-        disabledPluginInfo.path = "/some/path/to/vst/plugin/CCC.vst3";
-        disabledPluginInfo.meta.id = "CCC";
-        disabledPluginInfo.meta.type = AudioResourceType::VstPlugin;
-        disabledPluginInfo.enabled = false;
-        disabledPluginInfo.meta.attributes = {
-            { audio::CATEGORIES_ATTRIBUTE, u"Instrument|Synth" },
-            { audio::PLAYBACK_SETUP_DATA_ATTRIBUTE, mpe::GENERIC_SETUP_DATA_STRING }
+        AudioPluginInfo erroredPluginInfo;
+        erroredPluginInfo.path = "/some/path/to/vst/plugin/CCC.vst3";
+        erroredPluginInfo.meta.id = "CCC";
+        erroredPluginInfo.meta.type = "VstPlugin";
+        erroredPluginInfo.state = AudioPluginState::Error;
+        erroredPluginInfo.meta.attributes = {
+            { String(u"categories"), u"Instrument|Synth" },
+            { kRuntimeAttrKey, kRuntimeAttrValue }
         };
-        disabledPluginInfo.errorCode = -1;
-        plugins.push_back(disabledPluginInfo);
+        erroredPluginInfo.errorCode = -1;
+        plugins.push_back(erroredPluginInfo);
 
         ByteArray data = pluginInfoListToJson(plugins);
         ON_CALL(*m_fileSystem, readFile(m_knownAudioPluginsFilePath))
@@ -150,19 +169,19 @@ protected:
     std::shared_ptr<KnownAudioPluginsRegister> m_knownPlugins;
     std::shared_ptr<FileSystemMock> m_fileSystem;
     std::shared_ptr<AudioPluginsConfigurationMock> m_configuration;
+    std::shared_ptr<KnownAudioPluginsMigrationRegisterMock> m_migrations;
+    std::shared_ptr<GlobalConfigurationMock> m_globalConfiguration;
 
     path_t m_knownAudioPluginsFilePath;
+    PluginAttributes m_runtimeDefaults;
 };
 
 inline bool operator==(const AudioPluginInfo& info1, const AudioPluginInfo& info2)
 {
-    bool equal = info1.type == info2.type;
-    equal &= (info1.path == info2.path);
-    equal &= (info1.meta == info2.meta);
-    equal &= (info1.enabled == info2.enabled);
-    equal &= (info1.errorCode == info2.errorCode);
-
-    return equal;
+    return info1.path == info2.path
+           && info1.meta == info2.meta
+           && info1.state == info2.state
+           && info1.errorCode == info2.errorCode;
 }
 }
 
@@ -195,15 +214,14 @@ TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, PluginInfoList)
 
     // [THEN] Make sure that exists() does not always return true
     EXPECT_FALSE(m_knownPlugins->exists(path_t("/path/to/nonexistent/plugin.vst3")));
-    EXPECT_FALSE(m_knownPlugins->exists(AudioResourceId("nonexistent_plugin")));
+    EXPECT_FALSE(m_knownPlugins->exists(PluginResourceId("nonexistent_plugin")));
 
     // [GIVEN] New plugin for registration
     AudioPluginInfo newPluginInfo;
-    newPluginInfo.type = AudioPluginType::Instrument;
     newPluginInfo.meta.id = "DDD";
-    newPluginInfo.meta.type = AudioResourceType::VstPlugin;
+    newPluginInfo.meta.type = "VstPlugin";
     newPluginInfo.path = "/path/to/new/plugin/plugin.vst";
-    newPluginInfo.enabled = true;
+    newPluginInfo.state = AudioPluginState::Validated;
     expectedPluginInfoList.push_back(newPluginInfo);
 
     // [THEN] All the plugins will be written to the file
@@ -259,4 +277,228 @@ TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, PluginInfoList)
     EXPECT_EQ(m_knownPlugins->pluginPath(unregisteredPlugin.meta.id), "");
     actualPluginInfoList = m_knownPlugins->pluginInfoList();
     EXPECT_FALSE(muse::contains(actualPluginInfoList, unregisteredPlugin));
+}
+
+TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, RegisterPlugins_SkipsDuplicateSameIdSamePath)
+{
+    // Same id at the same path (e.g. a placeholder over a leftover from a
+    // crashed run) must be skipped with a warning, not written twice.
+    ON_CALL(*m_fileSystem, writeFile(_, _))
+    .WillByDefault(Return(muse::make_ok()));
+
+    ASSERT_TRUE(m_knownPlugins->load());
+
+    AudioPluginInfo info;
+    info.meta.id = "Dup";
+    info.meta.type = "VstPlugin";
+    info.path = "/some/path/Dup.vst3";
+    info.state = AudioPluginState::Discovered;
+
+    ASSERT_TRUE(m_knownPlugins->registerPlugins({ info }));
+
+    // second register with same id + same path: graceful skip, no duplicate
+    ASSERT_TRUE(m_knownPlugins->registerPlugins({ info }));
+
+    int count = 0;
+    for (const auto& plugin : m_knownPlugins->pluginInfoList()) {
+        if (plugin.meta.id == "Dup" && plugin.path == "/some/path/Dup.vst3") {
+            ++count;
+        }
+    }
+    EXPECT_EQ(count, 1);
+}
+
+TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, RegisterPlugins_SameIdDifferentPathSucceeds)
+{
+    // same id at distinct paths is allowed (a plugin installed twice)
+    ON_CALL(*m_fileSystem, writeFile(_, _))
+    .WillByDefault(Return(muse::make_ok()));
+
+    ASSERT_TRUE(m_knownPlugins->load());
+
+    AudioPluginInfo a;
+    a.meta.id = "Dup";
+    a.meta.type = "VstPlugin";
+    a.path = "/path/A/Dup.vst3";
+    a.state = AudioPluginState::Validated;
+
+    AudioPluginInfo b = a;
+    b.path = "/path/B/Dup.vst3";
+
+    EXPECT_TRUE(m_knownPlugins->registerPlugins({ a }));
+    EXPECT_TRUE(m_knownPlugins->registerPlugins({ b }));
+    EXPECT_EQ(m_knownPlugins->pluginInfoList().size(), 2u);
+}
+
+TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, SetPluginsState_MarksEveryEntryUnderPath)
+{
+    // State changes are keyed by path: a vanished binary flips every id it
+    // hosts, the same id installed at another path is left alone.
+    ON_CALL(*m_fileSystem, writeFile(_, _))
+    .WillByDefault(Return(muse::make_ok()));
+
+    ASSERT_TRUE(m_knownPlugins->load());
+
+    AudioPluginInfo shellA;
+    shellA.meta.id = "Shell FxA";
+    shellA.meta.type = "VstPlugin";
+    shellA.path = "/some/path/SHELL.vst3";
+    shellA.state = AudioPluginState::Validated;
+
+    AudioPluginInfo shellB = shellA;
+    shellB.meta.id = "Shell FxB";
+
+    AudioPluginInfo copyA = shellA;
+    copyA.path = "/another/path/SHELL.vst3";
+
+    ASSERT_TRUE(m_knownPlugins->registerPlugins({ shellA, shellB, copyA }));
+
+    ASSERT_TRUE(m_knownPlugins->setPluginsState({ shellA.path }, AudioPluginState::Missing));
+
+    for (const AudioPluginInfo& plugin : m_knownPlugins->pluginInfoList()) {
+        const AudioPluginState expected = plugin.path == shellA.path
+                                          ? AudioPluginState::Missing : AudioPluginState::Validated;
+        EXPECT_EQ(plugin.state, expected) << plugin.path.toStdString() << " " << plugin.meta.id;
+    }
+}
+
+TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, Load_MigrationFailure_LeavesRegisterEmpty)
+{
+    // A failed migration must propagate from load() and leave the register unpopulated.
+    JsonObject root;
+    root.set("version", 1);
+    root.set("plugins", JsonArray {});
+
+    ByteArray oldData = JsonDocument(root).toJson();
+
+    ON_CALL(*m_fileSystem, exists(m_knownAudioPluginsFilePath))
+    .WillByDefault(Return(muse::make_ok()));
+    ON_CALL(*m_fileSystem, readFile(m_knownAudioPluginsFilePath))
+    .WillByDefault(Return(RetVal<ByteArray>::make_ok(oldData)));
+
+    EXPECT_CALL(*m_migrations, migrate(1, CURRENT_KNOWN_AUDIO_PLUGINS_VERSION, _))
+    .WillOnce(Return(Ret(static_cast<int>(Ret::Code::UnknownError), std::string("missing migrator"))));
+
+    Ret ret = m_knownPlugins->load();
+
+    EXPECT_FALSE(ret);
+    EXPECT_NE(ret.text().find("migrator"), std::string::npos);
+    EXPECT_TRUE(m_knownPlugins->pluginInfoList().empty());
+}
+
+TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, Load_NewerVersion_ResetsToEmpty)
+{
+    // A newer-build cache can't be migrated down: load() resets to empty
+    // (the scan rebuilds it) instead of failing.
+    JsonObject meta;
+    meta.set("id", std::string("AAA"));
+    meta.set("type", std::string("VstPlugin"));
+    JsonObject entry;
+    entry.set("meta", meta);
+    entry.set("path", std::string("/some/path/AAA.vst3"));
+    entry.set("state", audioPluginStateName(AudioPluginState::Validated));
+
+    JsonArray plugins;
+    plugins << entry;
+
+    JsonObject root;
+    root.set("version", CURRENT_KNOWN_AUDIO_PLUGINS_VERSION + 1);
+    root.set("plugins", plugins);
+
+    ON_CALL(*m_fileSystem, exists(m_knownAudioPluginsFilePath))
+    .WillByDefault(Return(muse::make_ok()));
+    ON_CALL(*m_fileSystem, readFile(m_knownAudioPluginsFilePath))
+    .WillByDefault(Return(RetVal<ByteArray>::make_ok(JsonDocument(root).toJson())));
+
+    EXPECT_CALL(*m_migrations, migrate(_, _, _)).Times(0);
+
+    Ret ret = m_knownPlugins->load();
+
+    EXPECT_TRUE(ret);
+    EXPECT_TRUE(m_knownPlugins->pluginInfoList().empty());
+}
+
+TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, Load_LegacyArrayFormat)
+{
+    // [GIVEN] A legacy bare-array JSON file (pre-versioning)
+    JsonArray array;
+
+    JsonObject metaObj;
+    metaObj.set("id", std::string("AAA"));
+    metaObj.set("type", std::string("VstPlugin"));
+    metaObj.set("hasNativeEditorSupport", true);
+
+    JsonObject mainObj;
+    mainObj.set("meta", metaObj);
+    mainObj.set("path", std::string("/some/path/to/vst/plugin/AAA.vst3"));
+    mainObj.set("enabled", true);
+
+    array << mainObj;
+
+    ByteArray legacyData = JsonDocument(array).toJson();
+
+    ON_CALL(*m_fileSystem, exists(m_knownAudioPluginsFilePath))
+    .WillByDefault(Return(muse::make_ok()));
+    ON_CALL(*m_fileSystem, readFile(m_knownAudioPluginsFilePath))
+    .WillByDefault(Return(RetVal<ByteArray>::make_ok(legacyData)));
+
+    // [THEN] migrate() is called from version 0 to current
+    EXPECT_CALL(*m_migrations, migrate(0, CURRENT_KNOWN_AUDIO_PLUGINS_VERSION, _))
+    .WillOnce(Return(muse::make_ok()));
+
+    // [WHEN] Loading
+    Ret ret = m_knownPlugins->load();
+
+    // [THEN] Plugins parsed successfully
+    EXPECT_TRUE(ret);
+    EXPECT_TRUE(m_knownPlugins->exists(PluginResourceId("AAA")));
+}
+
+TEST_F(AudioPlugins_KnownAudioPluginsRegisterTest, Load_MalformedRow_SkippedKeepsValidRows)
+{
+    // [GIVEN] A cache with one valid row and one row with an empty id (older
+    // builds persisted LV2 entries this way); the bad row must be skipped,
+    // not abort the whole load.
+    JsonObject goodMeta;
+    goodMeta.set("id", std::string("AAA"));
+    goodMeta.set("type", std::string("VstPlugin"));
+    JsonObject goodRow;
+    goodRow.set("meta", goodMeta);
+    goodRow.set("path", std::string("/some/path/AAA.vst3"));
+    goodRow.set("state", audioPluginStateName(AudioPluginState::Validated));
+
+    JsonObject badMeta;
+    badMeta.set("id", std::string(""));
+    badMeta.set("type", std::string("Lv2Plugin"));
+    JsonObject badRow;
+    badRow.set("meta", badMeta);
+    badRow.set("path", std::string("http://x/plugin@file:///usr/lib/lv2/x.lv2/"));
+    badRow.set("state", audioPluginStateName(AudioPluginState::Discovered));
+
+    JsonArray plugins;
+    plugins << goodRow;
+    plugins << badRow;
+
+    JsonObject root;
+    root.set("version", CURRENT_KNOWN_AUDIO_PLUGINS_VERSION);
+    root.set("plugins", plugins);
+
+    ByteArray data = JsonDocument(root).toJson();
+
+    ON_CALL(*m_fileSystem, exists(m_knownAudioPluginsFilePath))
+    .WillByDefault(Return(muse::make_ok()));
+    ON_CALL(*m_fileSystem, readFile(m_knownAudioPluginsFilePath))
+    .WillByDefault(Return(RetVal<ByteArray>::make_ok(data)));
+
+    EXPECT_CALL(*m_migrations, migrate(CURRENT_KNOWN_AUDIO_PLUGINS_VERSION, CURRENT_KNOWN_AUDIO_PLUGINS_VERSION, _))
+    .WillOnce(Return(muse::make_ok()));
+
+    // [WHEN] Loading
+    Ret ret = m_knownPlugins->load();
+
+    // [THEN] Load succeeds, the malformed row is skipped, the valid row remains.
+    EXPECT_TRUE(ret);
+    AudioPluginInfoList list = m_knownPlugins->pluginInfoList();
+    ASSERT_EQ(list.size(), size_t(1));
+    EXPECT_EQ(list.front().meta.id, "AAA");
 }

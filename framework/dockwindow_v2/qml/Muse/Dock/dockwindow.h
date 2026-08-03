@@ -48,6 +48,7 @@ class DockToolBarView;
 class DockingHolderView;
 class DockPageView;
 class DockPanelView;
+class TopLevelToolBarsLayout;
 class DockWindow : public QQuickItem, public IDockWindow, public muse::Contextable, public async::Asyncable
 {
     Q_OBJECT
@@ -100,6 +101,8 @@ public:
 
     void restoreDefaultLayout() override;
 
+    QList<DockToolBarView*> topLevelToolBars(const DockPageView* page) const;
+
 signals:
     void pageLoaded();
     void currentPageUriChanged(const QString& uri);
@@ -115,12 +118,12 @@ private:
 
     void componentComplete() override;
     void geometryChange(const QRectF& newGeometry, const QRectF& oldGeometry) override;
+    void updatePolish() override;
 
     void loadPageContent(const DockPageView* page);
     void loadToolBars(const DockPageView* page);
     void loadPanels(const DockPageView* page);
     void loadTopLevelToolBars(const DockPageView* page);
-    void alignTopLevelToolBars(const DockPageView* page);
 
     void addDock(DockBase* dock, Location location = Location::Left, const DockBase* relativeTo = nullptr);
     void addPanelAsTab(DockPanelView* panel, DockPanelView* destinationPanel);
@@ -141,15 +144,7 @@ private:
 
     void initDocks(DockPageView* page);
 
-    void adjustContentForAvailableSpace(DockPageView* page);
-
-    void applyLayoutSizeToFitWindow();
-    void scheduleDeferredLayoutFix();
-    void runDeferredLayoutFix();
-
     void notifyAboutDocksOpenStatus();
-
-    QList<DockToolBarView*> topLevelToolBars(const DockPageView* page) const;
 
     KDDockWidgets::QtQuick::MainWindow* m_mainWindow = nullptr;
     DockPageView* m_currentPage = nullptr;
@@ -157,13 +152,9 @@ private:
     uicomponents::QmlListProperty<DockPageView> m_pages;
     async::Channel<QStringList> m_docksOpenStatusChanged;
 
-    class UniqueConnectionHolder;
-    QHash<DockPageView*, UniqueConnectionHolder*> m_pageConnections;
+    TopLevelToolBarsLayout* m_topLevelToolBarsLayout = nullptr;
 
     bool m_hasGeometryBeenRestored = false;
     bool m_reloadCurrentPageAllowed = false;
-
-    bool m_layoutFixScheduled = false;
-    int m_pendingWidth = -1;
 };
 }

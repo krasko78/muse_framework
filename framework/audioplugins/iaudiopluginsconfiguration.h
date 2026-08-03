@@ -25,6 +25,8 @@
 
 #include "global/io/path.h"
 
+#include "audiopluginstypes.h"
+
 namespace muse::audioplugins {
 class IAudioPluginsConfiguration : MODULE_GLOBAL_INTERFACE
 {
@@ -34,5 +36,9 @@ public:
     virtual ~IAudioPluginsConfiguration() = default;
 
     virtual io::path_t knownAudioPluginsFilePath() const = 0;
+
+    // runtime-only attributes: skipped on save, re-injected on load
+    virtual const PluginAttributes& runtimeAttributeDefaults() const = 0;
+    virtual void setRuntimeAttributeDefaults(const PluginAttributes& defaults) = 0;
 };
 }

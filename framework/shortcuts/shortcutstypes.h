@@ -36,16 +36,9 @@
 namespace muse::shortcuts {
 struct Shortcut
 {
-    // actions
     std::string action;
-    std::string context;
-
-    // commands
-    std::string command;
-    std::string scope;
-
-    // common
     std::vector<std::string> sequences;
+    std::string context;
     QKeySequence::StandardKey standardKey = QKeySequence::UnknownKey;
     bool autoRepeat = true;
 
@@ -61,9 +54,6 @@ struct Shortcut
     bool operator ==(const Shortcut& sc) const
     {
         return action == sc.action
-               && context == sc.context
-               && command == sc.command
-               && scope == sc.scope
                && sequences == sc.sequences
                && standardKey == sc.standardKey
                && autoRepeat == sc.autoRepeat;

@@ -76,8 +76,11 @@ Config::Config(int ctx)
     d->fixFlags();
 
     // stuff in multisplitter/ can't include the framework widget factory, so set it here
-    auto separatorCreator = [ctx](Layouting::Widget *parent) {
-        return Config::self(ctx).frameworkWidgetFactory()->createSeparator(parent);
+    auto separatorCreator = [](Layouting::Widget* parent) {
+        // Resolve it from the layout host widget the separator is being created for
+        auto host = parent ? qobject_cast<QWidgetAdapter*>(parent->asQObject()) : nullptr;
+        Q_ASSERT(host);
+        return Config::self(host->ctx()).frameworkWidgetFactory()->createSeparator(parent);
     };
 
     Layouting::Config::self().setSeparatorFactoryFunc(separatorCreator);

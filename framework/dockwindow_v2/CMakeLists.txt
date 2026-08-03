@@ -61,4 +61,8 @@ target_include_directories(muse_dockwindow SYSTEM PRIVATE
 
 if (MUSE_MODULE_DOCKWINDOW_QML)
     add_subdirectory(qml/Muse/Dock)
+
+    if (MUSE_MODULE_DOCKWINDOW_TESTS)
+        add_subdirectory(tests)
+    endif()
 endif()

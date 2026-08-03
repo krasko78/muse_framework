@@ -43,6 +43,7 @@ io::path_t ShortcutsConfigurationStub::shortcutsAppDataPath() const
     return io::path_t();
 }
 
+#ifdef MUSE_MODULE_SHORTCUTS_V2
 io::path_t ShortcutsConfigurationStub::commandShortcutsUserAppDataPath() const
 {
     return io::path_t();
@@ -52,3 +53,5 @@ io::path_t ShortcutsConfigurationStub::commandShortcutsAppDataPath() const
 {
     return io::path_t();
 }
+
+#endif

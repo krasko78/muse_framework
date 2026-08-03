@@ -28,6 +28,7 @@ target_sources(muse_vst PRIVATE
     ivstinstancesregister.h
     ivstplugininstance.h
     vsterrors.h
+    vstpluginattrs.h
     vsttypes.h
     vstmodule.cpp
     vstmodule.h
@@ -74,7 +75,7 @@ target_sources(muse_vst PRIVATE
 target_link_libraries(muse_vst PRIVATE vst3sdk)
 
 if (MUSE_QT_SUPPORT)
-    list(APPEND MODULE_LINK Qt::Qml Qt::Widgets)
+    target_link_libraries(muse_vst PRIVATE Qt::Qml Qt::Widgets)
 endif()
 
 target_no_warning(muse_vst -Wno-deprecated-declarations)

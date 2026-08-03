@@ -31,7 +31,6 @@
 #include "audioplugins/iknownaudiopluginsregister.h"
 #include "audio/common/iaudiothreadsecurer.h"
 
-#include "audioplugins/audiopluginstypes.h"
 #include "vsttypes.h"
 
 namespace muse::vst {
@@ -56,7 +55,7 @@ public:
     void refresh() override;
 
 private:
-    audio::AudioResourceMetaList modulesMetaList(const audioplugins::AudioPluginType& type) const;
+    audio::AudioResourceMetaList modulesMetaList(PluginType type) const;
 
     PluginContext m_pluginContext;
 

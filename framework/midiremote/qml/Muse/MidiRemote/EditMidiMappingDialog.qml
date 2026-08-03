@@ -19,6 +19,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 import QtQuick
 import QtQuick.Layouts
 
@@ -50,103 +51,98 @@ StyledDialogView {
         open()
     }
 
-    Rectangle {
+    EditMidiMappingModel {
+        id: model
+    }
+
+    Column {
+        id: contentColumn
         anchors.fill: parent
 
-        color: ui.theme.backgroundPrimaryColor
+        spacing: 24
 
         NavigationPanel {
             id: navPanel
             name: "EditMidiMappingDialog"
             section: root.navigationSection
-            enabled: root.enabled && root.visible
+            enabled: contentColumn.enabled && contentColumn.visible
             order: 1
         }
 
-        EditMidiMappingModel {
-            id: model
-        }
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
 
-        Column {
-            anchors.fill: parent
+            spacing: 8
 
-            spacing: 24
-
-            Row {
-                anchors.horizontalCenter: parent.horizontalCenter
-
-                spacing: 8
-
-                StyledIconLabel {
-                    id: actionIconLabel
-                }
-
-                StyledTextLabel {
-                    id: actionNameLabel
-
-                    font: ui.theme.bodyBoldFont
-                }
+            StyledIconLabel {
+                id: actionIconLabel
             }
 
             StyledTextLabel {
-                width: parent.width
+                id: actionNameLabel
 
-                text: qsTrc("midiremote", "Press a key or adjust a control on your MIDI device to assign it to this action.")
+                font: ui.theme.bodyBoldFont
+            }
+        }
+
+        StyledTextLabel {
+            width: parent.width
+
+            text: qsTrc("midiremote", "Press a key or adjust a control on your MIDI device to assign it to this action.")
+        }
+
+        RowLayout {
+            width: parent.width
+
+            spacing: 10
+
+            StyledTextLabel {
+                text: qsTrc("midiremote", "MIDI mapping:")
             }
 
-            RowLayout {
-                width: parent.width
+            TextInputField {
+                id: mappingField
 
-                spacing: 10
+                Layout.fillWidth: true
 
-                StyledTextLabel {
-                    text: qsTrc("midiremote", "MIDI mapping:")
-                }
+                background.border.color: ui.theme.accentColor
 
-                TextInputField {
-                    id: mappingField
+                readOnly: true
 
-                    Layout.fillWidth: true
+                currentText: model.mappingTitle
 
-                    background.border.color: ui.theme.accentColor
+                //: The app is waiting for the user to trigger a valid MIDI remote event
+                hint: qsTrc("global", "Waiting…")
 
-                    readOnly: true
+                navigation.panel: navPanel
+                navigation.order: 1
+            }
+        }
 
-                    currentText: model.mappingTitle
+        ButtonBox {
+            width: parent.width
 
-                    //: The app is waiting for the user to trigger a valid MIDI remote event
-                    hint: qsTrc("global", "Waiting…")
+            buttons: [ButtonBoxModel.Cancel]
 
-                    navigation.panel: navPanel
-                    navigation.order: 1
+            navigationPanel.section: root.navigationSection
+            navigationPanel.order: 2
+
+            FlatButton {
+                text: qsTrc("global", "Add")
+                buttonRole: ButtonBoxModel.ApplyRole
+                buttonId: ButtonBoxModel.Apply
+                enabled: mappingField.hasText
+                accentButton: true
+
+                onClicked: {
+                    root.mapToEventRequested(model.inputtedEvent())
+                    root.close()
                 }
             }
 
-            ButtonBox {
-                width: parent.width
-
-                buttons: [ ButtonBoxModel.Cancel ]
-
-                navigationPanel.section: root.navigationSection
-                navigationPanel.order: 2
-
-                FlatButton {
-                    text: qsTrc("global", "Add")
-                    buttonRole: ButtonBoxModel.ApplyRole
-                    buttonId: ButtonBoxModel.Apply
-                    enabled: mappingField.hasText
-                    accentButton: true
-
-                    onClicked: {
-                        root.mapToEventRequested(model.inputtedEvent())
-                        root.close()
-                    }
-                }
-
-                onStandardButtonClicked: function(buttonId) {
-                    if (buttonId === ButtonBoxModel.Cancel) {
-                        root.reject()
-                    }
+            onStandardButtonClicked: function (buttonId) {
+                if (buttonId === ButtonBoxModel.Cancel) {
+                    root.reject()
                 }
             }
         }

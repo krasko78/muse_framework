@@ -27,9 +27,12 @@
 #include "modularity/imoduleinterface.h"
 #include "types/uri.h"
 #include "interactivetypes.h"
-#include "ui/view/widgetdialog.h"
 
 class QWidget;
+
+namespace muse::ui {
+class WidgetDialog;
+}
 
 namespace muse::interactive {
 class IInteractiveUriRegister : MODULE_GLOBAL_INTERFACE

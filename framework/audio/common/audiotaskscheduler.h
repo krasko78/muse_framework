@@ -72,12 +72,12 @@ private:
 
     int getIdealThreadCount(AudioWorkGroup workGroup) const
     {
-        int bestThreadHint = std::thread::hardware_concurrency();
+        unsigned int bestThreadHint = std::thread::hardware_concurrency();
         if (workGroup.getProvider() != nullptr) {
-            bestThreadHint = workGroup.getMaxParallelThreadCount();
+            bestThreadHint = static_cast<unsigned int>(workGroup.getMaxParallelThreadCount());
         }
-        constexpr int hardwareToRealtimeRatio = 2; // This is a heuristic value. The optimal value may vary depending on the workload and system.
-        return bestThreadHint > 0 ? static_cast<int>(bestThreadHint / hardwareToRealtimeRatio) : 1;
+        constexpr unsigned int hardwareToRealtimeRatio = 2; // This is a heuristic value. The optimal value may vary depending on the workload and system.
+        return bestThreadHint > 0 ? bestThreadHint / hardwareToRealtimeRatio : 1;
     }
 
     void ensureThreadPoolSize(const AudioWorkGroup& currentWorkGroup)

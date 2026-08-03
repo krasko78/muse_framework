@@ -32,6 +32,7 @@ target_sources(muse_global PRIVATE
 
     globaltypes.h
     iapplication.h
+    iapplicationeventcontroller.h
     iglobalconfiguration.h
     log.h
     logstream.h
@@ -195,6 +196,8 @@ else()
         api/filesystemapi.cpp
         api/filesystemapi.h
 
+        internal/applicationeventcontroller.cpp
+        internal/applicationeventcontroller.h
         internal/baseapplication.cpp
         internal/baseapplication.h
         internal/cmdoptions.h
@@ -251,9 +254,7 @@ if (MUSE_QT_SUPPORT)
     # so that other modules get them transitively.
     target_link_libraries(muse_global PUBLIC Qt::Core Qt::Gui)
 
-    # These are needed by the PCH; if we don't make them public, modules
-    # that don't use them won't be able to use the PCH with some compilers.
-    target_link_libraries(muse_global PUBLIC Qt::Quick Qt::Widgets)
+    target_link_libraries(muse_global PRIVATE Qt::Quick Qt::Widgets)
 endif()
 
 target_link_libraries(muse_global PRIVATE ${CMAKE_DL_LIBS})

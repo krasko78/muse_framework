@@ -22,6 +22,7 @@
 #ifndef MUSE_GLOBAL_IPROCESS_H
 #define MUSE_GLOBAL_IPROCESS_H
 
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -33,9 +34,17 @@ class IProcess : MODULE_GLOBAL_INTERFACE
     INTERFACE_ID(muse::IProcess)
 
 public:
+    static constexpr int ExecuteCrashCode = -1;
+    static constexpr int ExecuteStartFailedCode = -2;
+    static constexpr int ExecuteTimeoutCode = -3;
+    static constexpr int ExecuteCanceledCode = -4;
+
     virtual ~IProcess() = default;
 
     virtual int execute(const std::string& program, const std::vector<std::string>& arguments = {}) = 0;
+    virtual int execute(const std::string& program, const std::vector<std::string>& arguments, int timeout_ms) = 0;
+    virtual int execute(const std::string& program, const std::vector<std::string>& arguments, int timeout_ms,
+                        const std::function<bool()>& shouldCancel) = 0;
     virtual bool startDetached(const std::string& program, const std::vector<std::string>& arguments = {}) = 0;
 };
 }

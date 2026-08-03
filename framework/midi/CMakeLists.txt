@@ -49,6 +49,14 @@ if (OS_IS_MAC)
         internal/platform/osx/coremidiinport.h
     )
 
+    set_source_files_properties(
+        internal/platform/osx/coremidioutport.cpp
+        internal/platform/osx/coremidiinport.cpp
+        PROPERTIES
+        SKIP_UNITY_BUILD_INCLUSION ON
+        SKIP_PRECOMPILE_HEADERS ON
+    )
+
     find_library(CoreMIDI NAMES CoreMIDI)
     find_library(CoreAudio NAMES CoreAudio)
     target_link_libraries(muse_midi PRIVATE ${CoreMIDI} ${CoreAudio})

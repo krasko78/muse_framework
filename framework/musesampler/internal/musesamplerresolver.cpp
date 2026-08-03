@@ -201,7 +201,7 @@ AudioResourceMetaList MuseSamplerResolver::resolveResources() const
 
         AudioResourceMeta meta;
         meta.id = std::to_string(instrumentId);
-        meta.type = AudioResourceType::MuseSamplerSoundPack;
+        meta.type = AUDIO_RESOURCE_TYPE_NAME;
         meta.vendor = "MuseSounds";
         meta.attributes = {
             { u"playbackSetupData", instrumentSoundId },

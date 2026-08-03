@@ -225,10 +225,8 @@ void EngineRpcController::init()
                 }
             };
 
-            AudioResourceType resourceType = params.source.resourceMeta.type;
-
             // Not Fluid
-            if (resourceType != AudioResourceType::FluidSoundfont) {
+            if (!isResourceType(params.source.resourceMeta, AudioResourceType::FluidSoundfont)) {
                 addTrackAndSendResponse(msg, trackName, playbackData, params);
                 return make_response_delayed(msg);
             }

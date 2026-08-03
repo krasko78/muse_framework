@@ -24,15 +24,20 @@
 
 #include "global/modularity/ioc.h"
 #include "global/io/ifilesystem.h"
+#include "global/iglobalconfiguration.h"
+#include "global/serialization/json.h"
 
 #include "../iknownaudiopluginsregister.h"
+#include "../iknownaudiopluginsmigrationregister.h"
 #include "../iaudiopluginsconfiguration.h"
 
 namespace muse::audioplugins {
 class KnownAudioPluginsRegister : public IKnownAudioPluginsRegister
 {
     GlobalInject<IAudioPluginsConfiguration> configuration;
+    GlobalInject<IKnownAudioPluginsMigrationRegister> migrations;
     GlobalInject<io::IFileSystem> fileSystem;
+    GlobalInject<IGlobalConfiguration> globalConfiguration;
 
     friend class AudioPlugins_KnownAudioPluginsRegisterTest;
 
@@ -40,23 +45,32 @@ public:
     KnownAudioPluginsRegister() = default;
 
     Ret load() override;
+    Ret clear() override;
 
     AudioPluginInfoList pluginInfoList(PluginInfoAccepted accepted = PluginInfoAccepted()) const override;
     muse::async::Notification pluginInfoListChanged() const override;
 
-    const io::path_t& pluginPath(const audio::AudioResourceId& resourceId) const override;
+    const io::path_t& pluginPath(const PluginResourceId& resourceId) const override;
 
     bool exists(const io::path_t& pluginPath) const override;
-    bool exists(const audio::AudioResourceId& resourceId) const override;
+    bool exists(const PluginResourceId& resourceId) const override;
 
     Ret registerPlugins(const AudioPluginInfoList& list) override;
-    Ret unregisterPlugins(const audio::AudioResourceIdList& resourceIds) override;
+    Ret unregisterPlugins(const PluginResourceIdList& resourceIds) override;
+
+    Ret setPluginsState(const io::paths_t& paths, AudioPluginState state) override;
+
+    Ret removePluginsAtPath(const io::path_t& path) override;
+
+    Ret writePluginsTo(const io::path_t& file, const AudioPluginInfoList& list) const override;
+    RetVal<AudioPluginInfoList> readPluginsFrom(const io::path_t& file) const override;
 
 private:
     Ret writePluginsInfo();
     async::Notification m_pluginInfoListChanged;
     bool m_loaded = false;
-    std::multimap<audio::AudioResourceId, AudioPluginInfo> m_pluginInfoMap;
+    std::multimap<PluginResourceId, AudioPluginInfo> m_pluginInfoMap;
     std::set<io::path_t> m_pluginPaths;
+    std::vector<JsonObject> m_ignoredEntries;
 };
 }

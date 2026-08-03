@@ -25,17 +25,14 @@
 #include <QAbstractListModel>
 #include <QItemSelection>
 #include <qqmlintegration.h>
-#include <QList>
 
 #include "modularity/ioc.h"
 #include "ishortcutsregister.h"
-#include "icommandshortcutsregister.h"
 #include "ishortcutsconfiguration.h"
 #include "ui/iuiactionsregister.h"
 #include "async/asyncable.h"
 #include "interactive/iinteractive.h"
 #include "iglobalconfiguration.h"
-#include "rcommand/icommandsregister.h"
 
 class QItemSelection;
 
@@ -51,8 +48,6 @@ class ShortcutsModel : public QAbstractListModel, public Contextable, public asy
 
     GlobalInject<IShortcutsConfiguration> configuration;
     GlobalInject<IGlobalConfiguration> globalConfiguration;
-    GlobalInject<rcommand::ICommandsRegister> commandsRegister;
-    GlobalInject<ICommandShortcutsRegister> commandShortcutsRegister;
     ContextInject<IShortcutsRegister> shortcutsRegister = { this };
     ContextInject<ui::IUiActionsRegister> uiactionsRegister = { this };
     ContextInject<IInteractive> interactive = { this };
@@ -94,6 +89,8 @@ private:
     QModelIndex currentShortcutIndex() const;
     void notifyAboutShortcutChanged(const QModelIndex& index);
 
+    QVariant shortcutToObject(const Shortcut& shortcut) const;
+
     enum Roles {
         RoleTitle = Qt::UserRole + 1,
         RoleIcon,
@@ -101,18 +98,7 @@ private:
         RoleSearchKey
     };
 
-    struct Item {
-        Shortcut shortcut;
-        QString group;
-        QString title;
-        int icon = 0;
-        QString sequence;
-        QString searchKey;
-    };
-
-    QVariant shortcutToObject(const Item& item) const;
-
-    QList<Item> m_items;
+    QList<Shortcut> m_shortcuts;
     QItemSelection m_selection;
 };
 }

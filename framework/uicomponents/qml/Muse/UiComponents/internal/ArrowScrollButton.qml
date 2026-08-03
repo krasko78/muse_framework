@@ -27,8 +27,7 @@ FlatButton {
     property bool isScrollUp: false
     property Flickable view: null
 
-    visible: enabled && (isScrollUp ? (view.contentY !== 0)
-                                    : (view.contentY !== view.contentHeight - view.height))
+    visible: enabled && (isScrollUp ? !view.atYBeginning : !view.atYEnd)
 
     mouseArea.onContainsMouseChanged: {
         if (!mouseArea.containsMouse) {
@@ -74,17 +73,10 @@ FlatButton {
         interval: 20
         onTriggered: {
             if (isScrollUp) {
-                if (root.view.contentY - scrollStep <= 0) {
-                    root.view.contentY = 0
-                } else {
-                    root.view.contentY -= scrollStep
-                }
+                root.view.contentY = Math.max(root.view.contentY - scrollStep, root.view.originY)
             } else {
-                if (root.view.contentY + scrollStep + root.view.height >= root.view.contentHeight) {
-                    root.view.contentY = root.view.contentHeight - root.view.height
-                } else {
-                    root.view.contentY += scrollStep
-                }
+                root.view.contentY = Math.min(root.view.contentY + scrollStep,
+                                              root.view.originY + root.view.contentHeight - root.view.height)
             }
         }
     }

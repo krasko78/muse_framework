@@ -590,9 +590,7 @@ void AsioAudioDriver::reset()
         return;
     }
 
-    Spec spec = s_adata.activeSpec;
-    close();
-    open(spec, nullptr);
+    m_availableOutputDevicesChanged.notify();
 }
 
 bool AsioAudioDriver::isOpened() const

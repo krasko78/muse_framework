@@ -112,6 +112,21 @@ TEST_F(Global_UriTests, UriQuery_Parse_Quoted)
     EXPECT_EQ(q.param("param3"), Val("x=5"));
 }
 
+TEST_F(Global_UriTests, UriQuery_Parse_EqualSignInValueAllowed)
+{
+    //! GIVEN Valid uriquery with a value containing a few equal signs
+
+    UriQuery q("muse://some/path?param=SGV5IHRoZXJlIQ==");
+
+    EXPECT_TRUE(q.isValid());
+    EXPECT_EQ(q.uri().scheme(), "muse");
+    EXPECT_EQ(q.uri().path(), "some/path");
+    EXPECT_EQ(q.uri().toString(), "muse://some/path");
+
+    EXPECT_EQ(q.params().size(), 1);
+    EXPECT_EQ(q.param("param"), Val("SGV5IHRoZXJlIQ=="));
+}
+
 TEST_F(Global_UriTests, UriQuery_ToString)
 {
     //! GIVEN Valid uriquery

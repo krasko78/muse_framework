@@ -31,6 +31,9 @@ public:
     Process() = default;
 
     int execute(const std::string& program, const std::vector<std::string>& arguments = {}) override;
+    int execute(const std::string& program, const std::vector<std::string>& arguments, int timeout_ms) override;
+    int execute(const std::string& program, const std::vector<std::string>& arguments, int timeout_ms,
+                const std::function<bool()>& shouldCancel) override;
     bool startDetached(const std::string& program, const std::vector<std::string>& arguments = {}) override;
 };
 }

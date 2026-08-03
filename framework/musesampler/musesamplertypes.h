@@ -23,9 +23,13 @@
 #ifndef MUSE_MUSESAMPLER_MUSESAMPLERTYPES_H
 #define MUSE_MUSESAMPLER_MUSESAMPLERTYPES_H
 
+#include <string_view>
+
 #include "types/string.h"
 
 namespace muse::musesampler {
+inline constexpr std::string_view AUDIO_RESOURCE_TYPE_NAME = "MuseSamplerSoundPack";
+
 enum class ClefType {
     None,
     Treble,

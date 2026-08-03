@@ -21,8 +21,6 @@
  */
 #pragma once
 
-#include "audioplugins/audiopluginstypes.h"
-
 #include "../ivstplugininstance.h"
 #include "../vsttypes.h"
 
@@ -40,7 +38,7 @@ public:
     VstAudioClient();
     ~VstAudioClient();
 
-    void init(audioplugins::AudioPluginType type, IVstPluginInstancePtr instance);
+    void init(PluginType type, IVstPluginInstancePtr instance);
     void loadSupportedParams();
 
     void setIsActive(const bool isActive);
@@ -102,7 +100,7 @@ private:
     bool m_needUnprepareProcessData = false;
     bool m_needUpdateState = false;
 
-    audioplugins::AudioPluginType m_type = audioplugins::AudioPluginType::Undefined;
+    PluginType m_type = PluginType::Undefined;
     audio::OutputSpec m_outputSpec;
 
     midiremote::IMMCDecoderPtr m_mmcDecoder;

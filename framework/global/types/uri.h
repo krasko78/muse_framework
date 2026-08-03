@@ -86,13 +86,23 @@ public:
 
     const Params& params() const;
     Val param(const std::string& key, const Val& def = Val()) const;
-    void addParam(const std::string& key, const Val& val);
     UriQuery& set(const ValMap& vals);
     UriQuery& set(const std::string& key, const Val& val);
     UriQuery& set(const std::string& key, const ValList& vals) { return set(key, Val(vals)); }
     UriQuery& set(const std::string& key, const std::string& val) { return set(key, Val(val)); }
+    UriQuery& set(const std::string& key, const char* val) { return set(key, Val(val)); }
     UriQuery& set(const std::string& key, int val) { return set(key, Val(val)); }
     UriQuery& set(const std::string& key, bool val) { return set(key, Val(val)); }
+
+    UriQuery set(const ValMap& vals) const;
+    UriQuery set(const std::string& key, const Val& val) const;
+    UriQuery set(const std::string& key, const ValList& vals) const { return set(key, Val(vals)); }
+    UriQuery set(const std::string& key, const std::string& val) const { return set(key, Val(val)); }
+    UriQuery set(const std::string& key, const char* val) const { return set(key, Val(val)); }
+    UriQuery set(const std::string& key, int val) const { return set(key, Val(val)); }
+    UriQuery set(const std::string& key, bool val) const { return set(key, Val(val)); }
+
+    void addParam(const std::string& key, const Val& val);
     UriQuery addingParam(const std::string& key, const Val& val) const;
     bool contains(const std::string& key) const;
 

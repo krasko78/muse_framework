@@ -188,12 +188,12 @@ inline void unpack_custom(muse::msgpack::UnPacker& p, muse::audio::AudioFxCatego
 
 inline void pack_custom(muse::msgpack::Packer& p, const muse::audio::AudioResourceMeta& value)
 {
-    p.process(value.id, value.type, value.vendor, value.attributes, value.hasNativeEditorSupport);
+    p.process(value.id, value.type, value.vendor, value.attributes);
 }
 
 inline void unpack_custom(muse::msgpack::UnPacker& p, muse::audio::AudioResourceMeta& value)
 {
-    p.process(value.id, value.type, value.vendor, value.attributes, value.hasNativeEditorSupport);
+    p.process(value.id, value.type, value.vendor, value.attributes);
 }
 
 inline void pack_custom(muse::msgpack::Packer& p, const muse::audio::AudioFxParams& value)

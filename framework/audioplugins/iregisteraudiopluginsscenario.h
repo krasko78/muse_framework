@@ -24,13 +24,15 @@
 
 #include "modularity/imoduleinterface.h"
 
-#include "audio/common/audiotypes.h"
+#include "global/types/ret.h"
+#include "global/io/path.h"
 #include "global/progress.h"
+#include "audiopluginstypes.h"
 
 namespace muse::audioplugins {
 struct PluginScanResult {
-    io::paths_t newPluginPaths;
-    audio::AudioResourceIdList missingPluginIds;
+    io::paths_t newPluginPaths;      // not in cache, or back after Missing; validated via subprocess
+    io::paths_t missingPluginPaths;  // in cache but not found by any scanner
 };
 
 class IRegisterAudioPluginsScenario : MODULE_CONTEXT_INTERFACE
@@ -42,12 +44,14 @@ public:
 
     virtual PluginScanResult scanPlugins(Progress* progress = nullptr) const = 0;
 
-    virtual void updatePluginsRegistry() = 0;
+    virtual Ret updatePluginsRegistry() = 0;
+    virtual Ret rescanAllPlugins() = 0;
 
-    virtual Ret registerNewPlugins(const io::paths_t& pluginPaths) = 0;
-    virtual Ret unregisterRemovedPlugins(const audio::AudioResourceIdList& pluginIds) = 0;
+    // validate=false only persists Discovered placeholders, to be validated on the next scan
+    virtual Ret registerNewPlugins(const io::paths_t& pluginPaths, bool validate = true) = 0;
+    virtual Ret unregisterRemovedPlugins(const PluginResourceIdList& pluginIds) = 0;
 
     virtual Ret registerPlugin(const io::path_t& pluginPath) = 0;
-    virtual Ret registerFailedPlugin(const io::path_t& pluginPath, int failCode) = 0;
+    virtual Ret validatePlugin(const io::path_t& pluginPath, const io::path_t& outputFile) = 0;
 };
 }
