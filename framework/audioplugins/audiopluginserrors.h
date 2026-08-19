@@ -30,6 +30,7 @@ enum class Err {
     UnknownError    = int(Ret::Code::AudioFirst),
 
     UnknownPluginType = 351,
+    PluginCrashedOnLoad = 352,
 };
 
 inline Ret make_ret(Err e)

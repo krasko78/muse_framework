@@ -34,6 +34,7 @@ ValueList {
     valueTitle: qsTrc("shortcuts", "shortcut")
     iconRoleName: "icon"
     iconColorRoleName: "iconColor"
+    sectionRoleName: "group"
     readOnly: true
 
     property var sourceModel: null
@@ -43,20 +44,47 @@ ValueList {
 
     signal startEditCurrentShortcutRequested()
 
+    QtObject {
+        id: prv
+
+        property var collapsedSectionsBeforeSearch: null
+    }
+
+    onSearchTextChanged: {
+        if (Boolean(root.searchText)) {
+            if (prv.collapsedSectionsBeforeSearch === null) {
+                prv.collapsedSectionsBeforeSearch = root.collapsedSections
+                root.expandAllSections()
+            }
+        } else if (prv.collapsedSectionsBeforeSearch !== null) {
+            root.collapsedSections = prv.collapsedSectionsBeforeSearch
+            prv.collapsedSectionsBeforeSearch = null
+        }
+    }
+
     model: SortFilterProxyModel {
         id: filterModel
         sourceModel: root.sourceModel
 
         filters: [
             FilterValue {
-                roleName: "searchKey"
-                roleValue: root.searchText
-                compareType: CompareType.Contains
-            },
-            FilterValue {
                 roleName: "title"
                 roleValue: ""
                 compareType: CompareType.NotEqual
+            },
+            FuzzyFilter {
+                id: fuzzyFilter
+
+                enabled: Boolean(fuzzyPattern)
+                fuzzyPattern: root.searchText
+                roleName: "searchKey"
+                caseSensitivity: Qt.CaseInsensitive
+            }
+        ]
+        sorters: [
+            FuzzyScoreSorter {
+                fuzzyFilter: fuzzyFilter
+                enabled: fuzzyFilter.enabled
             }
         ]
     }

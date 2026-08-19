@@ -30,11 +30,16 @@ target_sources(muse_vst PRIVATE
     vsterrors.h
     vstpluginattrs.h
     vsttypes.h
+    vstcommands.h
     vstmodule.cpp
     vstmodule.h
 
     internal/vstactionscontroller.cpp
     internal/vstactionscontroller.h
+    internal/vstcommandsregister.cpp
+    internal/vstcommandsregister.h
+    internal/vstcommandsstate.cpp
+    internal/vstcommandsstate.h
     internal/vstuiactions.cpp
     internal/vstuiactions.h
     internal/vstmodulesrepository.cpp
@@ -70,6 +75,12 @@ target_sources(muse_vst PRIVATE
 
     widgets/vstviewdialog_qwidget.cpp
     widgets/vstviewdialog_qwidget.h
+)
+
+set_source_files_properties(
+    internal/vstuiactions.cpp
+    PROPERTIES
+    SKIP_UNITY_BUILD_INCLUSION ON
 )
 
 target_link_libraries(muse_vst PRIVATE vst3sdk)

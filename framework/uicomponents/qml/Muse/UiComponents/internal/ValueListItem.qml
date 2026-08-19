@@ -47,6 +47,8 @@ ListItemBlank {
     property bool keyReadOnly: false
 
     property bool drawZebra: true
+    property int zebraIndex: index
+
     property int keyColumnWidth: 0
     property bool startEditByDoubleClick: false
     property int textInputSidePadding: 12
@@ -62,7 +64,7 @@ ListItemBlank {
 
     height: 34
 
-    normalColor: drawZebra ? ( (index % 2 == 0) ? ui.theme.backgroundSecondaryColor : ui.theme.backgroundPrimaryColor ) : ui.theme.backgroundPrimaryColor
+    normalColor: drawZebra ? ( (zebraIndex % 2 == 0) ? ui.theme.backgroundSecondaryColor : ui.theme.backgroundPrimaryColor ) : ui.theme.backgroundPrimaryColor
 
     navigation.accessible.name: root.item[keyRoleName] + ": " + (Boolean(valueLoader.item) ? valueLoader.item.accessibleName : "")
 

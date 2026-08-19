@@ -22,6 +22,8 @@
 
 #include "shortcutsmodel.h"
 
+#include <QStringList>
+
 #include "containers.h"
 #include "translation.h"
 #include "types/mnemonicstring.h"
@@ -54,10 +56,16 @@ QVariant ShortcutsModel::data(const QModelIndex& index, int role) const
 
     switch (role) {
     case RoleTitle: return item.title;
+    case RoleGroup: return item.group;
     case RoleIcon: return item.icon;
     case RoleIconColor: return item.iconColor;
     case RoleSequence: return item.sequence;
-    case RoleSearchKey: return item.searchKey + item.sequence;
+    case RoleSearchKey: {
+        QStringList searchKeyItems;
+        searchKeyItems << item.searchKey
+                       << item.sequence;
+        return searchKeyItems.join(u' ');
+    }
     }
 
     return QVariant();
@@ -88,6 +96,7 @@ QHash<int, QByteArray> ShortcutsModel::roleNames() const
 {
     static const QHash<int, QByteArray> roles {
         { RoleTitle, "title" },
+        { RoleGroup, "group" },
         { RoleIcon, "icon" },
         { RoleIconColor, "iconColor" },
         { RoleSequence, "sequence" },
@@ -130,9 +139,12 @@ void ShortcutsModel::load()
 
             item.icon = static_cast<int>(info.decoration.iconCode);
             item.sequence = sequencesToNativeText(shortcut.sequences);
-            item.searchKey = QString::fromStdString(info.command.toString())
-                             + info.title.qTranslatedWithoutMnemonic()
-                             + info.description.qTranslated();
+
+            QStringList searchKeyItems;
+            searchKeyItems << QString::fromStdString(info.command.toString())
+                           << info.title.qTranslatedWithoutMnemonic()
+                           << info.description.qTranslated();
+            item.searchKey = searchKeyItems.join(u' ');
 
             m_items.append(item);
         }
@@ -161,9 +173,12 @@ void ShortcutsModel::load()
             item.icon = static_cast<int>(action.iconCode);
             item.iconColor = action.iconColor;
             item.sequence = sequencesToNativeText(shortcut.sequences);
-            item.searchKey = QString::fromStdString(action.code)
-                             + action.title.qTranslatedWithoutMnemonic()
-                             + action.description.qTranslated();
+
+            QStringList searchKeyItems;
+            searchKeyItems << QString::fromStdString(action.code)
+                           << action.title.qTranslatedWithoutMnemonic()
+                           << action.description.qTranslated();
+            item.searchKey = searchKeyItems.join(u' ');
 
             m_items.append(item);
         }
@@ -173,11 +188,18 @@ void ShortcutsModel::load()
         }, async::Asyncable::Mode::SetReplace);
     }
 
+    commandShortcutsRegister()->currentPresetNameChanged().onReceive(this, [this](const std::string&) {
+        emit currentPresetNameChanged();
+    }, async::Asyncable::Mode::SetReplace);
+
     std::sort(m_items.begin(), m_items.end(), [](const Item& i1, const Item& i2) {
         return i1.group > i2.group || (i1.group == i2.group && i1.title < i2.title);
     });
 
     endResetModel();
+
+    m_hasUnsavedChanges = false;
+    emit presetsChanged();
 }
 
 bool ShortcutsModel::apply()
@@ -212,6 +234,9 @@ bool ShortcutsModel::apply()
             return false;
         }
     }
+
+    m_hasUnsavedChanges = false;
+    emit presetsChanged();
 
     return true;
 }
@@ -316,6 +341,8 @@ void ShortcutsModel::applySequenceToCurrentShortcut(const QString& newSequence, 
     }
 
     notifyAboutShortcutChanged(currIndex);
+
+    markUnsavedChanges();
 }
 
 void ShortcutsModel::clearSelectedShortcuts()
@@ -325,6 +352,10 @@ void ShortcutsModel::clearSelectedShortcuts()
         item.shortcut.clear();
         item.sequence = "";
         notifyAboutShortcutChanged(index);
+    }
+
+    if (!m_selection.indexes().isEmpty()) {
+        markUnsavedChanges();
     }
 }
 
@@ -336,38 +367,153 @@ void ShortcutsModel::notifyAboutShortcutChanged(const QModelIndex& index)
 void ShortcutsModel::resetToDefaultSelectedShortcuts()
 {
     auto resolveConflicts = [this](const Shortcut& shortcut) {
+        if (shortcut.sequences.empty()) {
+            return;
+        }
+
         for (int i = 0; i < m_items.size(); ++i) {
-            Shortcut& sc = m_items[i].shortcut;
+            Item& item = m_items[i];
+            Shortcut& sc = item.shortcut;
 
             if (shortcut == sc) {
                 continue;
             }
 
-            if (!areContextPrioritiesEqual(shortcut.context, sc.context)) {
+            if (!canShortcutsConflict(shortcut.scope, sc.scope)) {
                 continue;
             }
 
-            if (shortcut.sequences == sc.sequences) {
-                sc.clear();
+            bool removed = muse::remove_if(sc.sequences, [&shortcut](const std::string& sequence) {
+                return muse::contains(shortcut.sequences, sequence);
+            });
+
+            if (removed) {
+                if (sc.sequences.empty()) {
+                    sc.clear();
+                }
+
+                item.sequence = sequencesToNativeText(sc.sequences);
                 notifyAboutShortcutChanged(index(i));
             }
         }
     };
 
     for (const QModelIndex& index : m_selection.indexes()) {
-        Shortcut& shortcut = m_items[index.row()].shortcut;
+        Item& item = m_items[index.row()];
+        Shortcut& shortcut = item.shortcut;
 
-        const Shortcut& defaultShortcut = shortcutsRegister()->defaultShortcut(shortcut.action);
-        if (defaultShortcut.isValid()) {
-            shortcut = defaultShortcut;
+        const Shortcut& defaultActionShortcut = shortcutsRegister()->defaultShortcut(shortcut.action);
+        if (defaultActionShortcut.isValid()) {
+            shortcut = defaultActionShortcut;
         } else {
-            shortcut.sequences = {};
+            const Shortcut& defaultCommandShortcut = commandShortcutsRegister()->defaultShortcut(shortcut.command);
+            if (defaultCommandShortcut.isValid()) {
+                shortcut = defaultCommandShortcut;
+            } else {
+                shortcut.sequences = {};
+            }
         }
+
+        item.sequence = sequencesToNativeText(shortcut.sequences);
 
         resolveConflicts(shortcut);
 
         notifyAboutShortcutChanged(index);
     }
+
+    if (!m_selection.indexes().isEmpty()) {
+        markUnsavedChanges();
+    }
+}
+
+QVariantList ShortcutsModel::presets() const
+{
+    auto makePreset = [this](const std::string& name, const QString& title) {
+        bool isEdited = isPresetEditedOrHasUnsavedChanges(name);
+
+        QVariantMap preset;
+        preset["name"] = QString::fromStdString(name);
+        preset["title"] = isEdited ? title + " " + muse::qtrc("shortcuts", "(edited)") : title;
+        preset["isEdited"] = isEdited;
+        return preset;
+    };
+
+    QVariantList result;
+    result << makePreset(std::string(), muse::qtrc("shortcuts", "Default"));
+
+    for (const std::string& name : commandShortcutsRegister()->availablePresets()) {
+        result << makePreset(name, presetTitle(name));
+    }
+
+    return result;
+}
+
+bool ShortcutsModel::isPresetEditedOrHasUnsavedChanges(const std::string& presetName) const
+{
+    if (presetName == currentPresetName().toStdString() && m_hasUnsavedChanges) {
+        return true;
+    }
+
+    return isPresetEdited(presetName);
+}
+
+bool ShortcutsModel::isPresetEdited(const std::string& presetName) const
+{
+    return commandShortcutsRegister()->isPresetEdited(presetName);
+}
+
+bool ShortcutsModel::isCurrentPresetEdited() const
+{
+    return m_hasUnsavedChanges || isPresetEdited(currentPresetName().toStdString());
+}
+
+void ShortcutsModel::markUnsavedChanges()
+{
+    if (!m_hasUnsavedChanges) {
+        m_hasUnsavedChanges = true;
+        emit presetsChanged();
+    }
+}
+
+bool ShortcutsModel::canDeleteCurrentPreset() const
+{
+    return commandShortcutsRegister()->canDeletePreset(currentPresetName().toStdString());
+}
+
+void ShortcutsModel::resetCurrentPreset()
+{
+    commandShortcutsRegister()->resetShortcuts();
+}
+
+void ShortcutsModel::deleteCurrentPreset()
+{
+    commandShortcutsRegister()->deletePreset(currentPresetName().toStdString());
+}
+
+QString ShortcutsModel::presetTitle(const std::string& presetName) const
+{
+    static const QString PREFIX("shortcuts_");
+
+    QString title = QString::fromStdString(presetName);
+    if (title.startsWith(PREFIX)) {
+        title = title.mid(PREFIX.length());
+    }
+
+    return title.toUpper();
+}
+
+QString ShortcutsModel::currentPresetName() const
+{
+    return QString::fromStdString(commandShortcutsRegister()->currentPresetName());
+}
+
+void ShortcutsModel::setCurrentPresetName(const QString& name)
+{
+    if (name == currentPresetName()) {
+        return;
+    }
+
+    commandShortcutsRegister()->setCurrentPresetName(name.toStdString());
 }
 
 QVariantList ShortcutsModel::shortcuts() const
@@ -386,7 +532,7 @@ QVariant ShortcutsModel::shortcutToObject(const Item& item) const
     QVariantMap obj;
     obj["title"] = item.title;
     obj["sequence"] = item.sequence;
-    obj["context"] = QString::fromStdString(item.shortcut.context);
+    obj["scope"] = QString::fromStdString(item.shortcut.scope);
     obj["autoRepeat"] = item.shortcut.autoRepeat;
 
     return obj;

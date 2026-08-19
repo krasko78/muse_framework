@@ -19,15 +19,19 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
+
 #pragma once
 
 #include <qqmlintegration.h>
 
+#include <QByteArray>
+#include <QHash>
+#include <QList>
 #include <QSortFilterProxyModel>
 
-#include "filtervalue.h"
-#include "sortervalue.h"
+#include "filter.h"
 #include "qmllistproperty.h"
+#include "sorter.h"
 
 namespace muse::uicomponents {
 class SortFilterProxyModel : public QSortFilterProxyModel
@@ -36,17 +40,18 @@ class SortFilterProxyModel : public QSortFilterProxyModel
     QML_ELEMENT
 
     Q_PROPERTY(int rowCount READ rowCount NOTIFY rowCountChanged)
-
-    Q_PROPERTY(QQmlListProperty<muse::uicomponents::FilterValue> filters READ filters CONSTANT)
-    Q_PROPERTY(QQmlListProperty<muse::uicomponents::SorterValue> sorters READ sorters CONSTANT)
+    Q_PROPERTY(QQmlListProperty<muse::uicomponents::Filter> filters READ filters CONSTANT)
+    Q_PROPERTY(QQmlListProperty<muse::uicomponents::Sorter> sorters READ sorters CONSTANT)
     Q_PROPERTY(QList<int> alwaysIncludeIndices READ alwaysIncludeIndices WRITE setAlwaysIncludeIndices NOTIFY alwaysIncludeIndicesChanged)
     Q_PROPERTY(QList<int> alwaysExcludeIndices READ alwaysExcludeIndices WRITE setAlwaysExcludeIndices NOTIFY alwaysExcludeIndicesChanged)
+
+    Q_PROPERTY(QString sectionRoleName READ sectionRoleName WRITE setSectionRoleName NOTIFY sectionRoleNameChanged)
 
 public:
     explicit SortFilterProxyModel(QObject* parent = nullptr);
 
-    QQmlListProperty<FilterValue> filters();
-    QQmlListProperty<SorterValue> sorters();
+    QQmlListProperty<Filter> filters();
+    QQmlListProperty<Sorter> sorters();
 
     QList<int> alwaysIncludeIndices() const;
     void setAlwaysIncludeIndices(const QList<int>& indices);
@@ -54,19 +59,20 @@ public:
     QList<int> alwaysExcludeIndices() const;
     void setAlwaysExcludeIndices(const QList<int>& indices);
 
+    QString sectionRoleName() const;
+    void setSectionRoleName(const QString& roleName);
+
+    int roleIdFromName(const QString&) const;
     QHash<int, QByteArray> roleNames() const override;
 
     void setSourceModel(QAbstractItemModel* sourceModel) override;
 
-    Q_INVOKABLE void refresh();
-
 signals:
     void rowCountChanged();
 
-    void filtersChanged(QQmlListProperty<muse::uicomponents::FilterValue> filters);
-
     void alwaysIncludeIndicesChanged();
     void alwaysExcludeIndicesChanged();
+    void sectionRoleNameChanged();
 
     void sourceModelRoleNamesChanged();
 
@@ -75,20 +81,26 @@ protected:
     bool lessThan(const QModelIndex& left, const QModelIndex& right) const override;
 
 private:
-    void reset();
-    void fillRoleIds();
+    static constexpr int INVALID_ROLE_ID = -1;
 
-    SorterValue* currentSorterValue() const;
-    int roleKey(const QString& roleName) const;
+    void updateRoleIds();
+    Sorter* currentSorter() const;
+    void invalidateFilters();
+    void updateSorting();
 
-    QmlListProperty<FilterValue> m_filters;
-    QHash<int, FilterValue*> m_roleIdToFilterValueHash;
+    QHash<QByteArray, int> m_roleIds;
 
-    QmlListProperty<SorterValue> m_sorters;
+    QmlListProperty<Filter> m_filters;
+    QmlListProperty<Sorter> m_sorters;
 
     QList<int> m_alwaysIncludeIndices;
     QList<int> m_alwaysExcludeIndices;
 
+    QString m_sectionRoleName;
+    int m_sectionRoleId = INVALID_ROLE_ID;
+
     QMetaObject::Connection m_subSourceModelConnection;
+    QMetaObject::Connection m_sourceDataChangedConnection;
+    QMetaObject::Connection m_sourceModelAboutToBeResetConnection;
 };
 }

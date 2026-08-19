@@ -44,6 +44,7 @@ public:
 
     void init();
     void setRenderCacheDirPath(const io::path_t& path, const std::string& revision = std::string()) override;
+    void clearLoadedFaces() override;
 
     double lineSpacing(const Font& f) const override;
     double xHeight(const Font& f) const override;
@@ -87,10 +88,13 @@ private:
 
         bool isSymbolMode() const;
         double pixelScale() const;
+        double pixelScaleFor(const IFontFace* loadedFace) const;
     };
 
     IFontFace* createFontFace(const io::path_t& path) const;
     RequireFace* fontFace(const Font& f, bool isSymbolMode = false) const;
+    IFontFace* fontFace(const FontDataKey& dataKey, Font::Type type, int pixelSize, bool isSymbolMode) const;
+    IFontFace* sdfFontFaceFor(const IFontFace* layoutFace) const;
 
     std::vector<FontFaceTextBlock> splitTextByFontFaces(const RequireFace* rf, const TextBlock& text) const;
 

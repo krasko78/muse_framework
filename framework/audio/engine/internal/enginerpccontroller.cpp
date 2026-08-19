@@ -414,7 +414,7 @@ void EngineRpcController::init()
             }
         });
 
-        onLongRequest(ctxId, MsgCode::SetControlParams, [this](const Msg& msg) {
+        onQuickRequest(ctxId, MsgCode::SetControlParams, [this](const Msg& msg) {
             ONLY_AUDIO_RPC_THREAD;
             TrackId trackId = 0;
             ControlParams params;
@@ -563,6 +563,29 @@ void EngineRpcController::init()
                 StreamId streamId = 0;
                 if (ret.ret) {
                     streamId = channel()->addSendStream(StreamName::AudioSignalStream, ret.val);
+                }
+
+                RetVal<StreamId> res;
+                res.ret = ret.ret;
+                res.val = streamId;
+                return make_response_ret(msg, res);
+            } else {
+                return make_response_ret(msg, RetVal<StreamId>::make_ret(Err::InvalidContext));
+            }
+        });
+
+        onQuickRequest(ctxId, MsgCode::GetAutomatedControlParamsChanges, [this](const Msg& msg) {
+            ONLY_AUDIO_RPC_THREAD;
+            TrackId trackId = 0;
+            IF_ASSERT_FAILED(RpcPacker::unpack(msg.data, trackId)) {
+                return make_response_ret(msg, make_ret(Err::InvalidRpcData));
+            }
+
+            if (auto actx = audioContext(msg.ctxId)) {
+                RetVal<AutomatedControlParamsChanges> ret = audioContext(msg.ctxId)->automatedControlParamsChanges(trackId);
+                StreamId streamId = 0;
+                if (ret.ret) {
+                    streamId = channel()->addSendStream(StreamName::AutomatedControlParamsStream, ret.val);
                 }
 
                 RetVal<StreamId> res;

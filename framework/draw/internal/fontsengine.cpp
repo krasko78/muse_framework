@@ -24,8 +24,12 @@
 #include "global/io/fileinfo.h"
 
 #include "ifontface.h"
+#ifdef MUSE_MODULE_DRAW_USE_FONTFACE_FT
 #include "fontfaceft.h"
-//#include "fontfacext.h"
+#endif
+#ifdef MUSE_MODULE_DRAW_USE_FONTFACE_XT
+#include "fontfacext.h"
+#endif
 #include "fontfacedu.h"
 
 #include "log.h"
@@ -34,7 +38,6 @@ using namespace muse;
 using namespace muse::draw;
 
 static const double DEFAULT_PIXEL_SIZE = 100.0;
-static const double SYMBOLS_PIXEL_SIZE = 200.0;
 static const double LOADED_PIXEL_SIZE = 200.0;
 static const double FONT_METRICS_DPI = 1200.0;
 static constexpr double PPI = 72.0;
@@ -52,6 +55,16 @@ static int fontMetricsPixelSize(const Font& f)
 static FaceKey faceKeyForMetricsFont(const Font& f)
 {
     return FaceKey(dataKeyForFont(f), f.type(), fontMetricsPixelSize(f));
+}
+
+static int loadedPixelSizeForFontPath(const io::path_t& path, int requirePixelSize)
+{
+    // FTX fonts store glyph metrics and images baked at LOADED_PIXEL_SIZE.
+    if (io::FileInfo::suffix(path).toLower() == u"ftx") {
+        return static_cast<int>(LOADED_PIXEL_SIZE);
+    }
+
+    return requirePixelSize;
 }
 
 static inline RectF fromFBBox(const FBBox& bb, double scale)
@@ -103,22 +116,21 @@ bool FontsEngine::RequireFace::isSymbolMode() const
 
 double FontsEngine::RequireFace::pixelScale() const
 {
-    if (!face) {
+    return pixelScaleFor(face);
+}
+
+double FontsEngine::RequireFace::pixelScaleFor(const IFontFace* loadedFace) const
+{
+    if (!loadedFace) {
         return 0.0;
     }
-    double scale = static_cast<double>(requireKey.pixelSize) / static_cast<double>(face->key().pixelSize);
-    return scale;
+
+    return static_cast<double>(requireKey.pixelSize) / static_cast<double>(loadedFace->key().pixelSize);
 }
 
 FontsEngine::~FontsEngine()
 {
-    for (RequireFace* f : m_requiredFaces) {
-        delete f;
-    }
-
-    for (IFontFace* f : m_loadedFaces) {
-        delete f;
-    }
+    clearLoadedFaces();
 }
 
 void FontsEngine::init()
@@ -129,6 +141,19 @@ void FontsEngine::init()
 void FontsEngine::setRenderCacheDirPath(const io::path_t& path, const std::string& revision)
 {
     m_renderCache.setCacheDirPath(path, revision);
+}
+
+void FontsEngine::clearLoadedFaces()
+{
+    for (RequireFace* f : m_requiredFaces) {
+        delete f;
+    }
+    m_requiredFaces.clear();
+
+    for (IFontFace* f : m_loadedFaces) {
+        delete f;
+    }
+    m_loadedFaces.clear();
 }
 
 double FontsEngine::lineSpacing(const Font& f) const
@@ -223,7 +248,7 @@ double FontsEngine::horizontalAdvance(const Font& f, const std::u32string& text)
         return 0.0;
     }
 
-    f26dot6_t advance = 0;
+    double advance = 0.0;
 
     TextBlock textBlock;
     textBlock.text = &text[0];
@@ -240,13 +265,14 @@ double FontsEngine::horizontalAdvance(const Font& f, const std::u32string& text)
             fontFace = rf->face;
         }
 
+        const double pixelScale = rf->pixelScaleFor(fontFace);
         std::vector<GlyphPos> glyphs = fontFace->glyphs(ffBlock.text.text, ffBlock.text.lenght);
         for (const GlyphPos& g : glyphs) {
-            advance += g.x_advance;
+            advance += from_f26d6(g.x_advance) * pixelScale;
         }
     }
 
-    return from_f26d6(advance) * rf->pixelScale();
+    return advance;
 }
 
 RectF FontsEngine::boundingRect(const Font& f, const char32_t& ch) const
@@ -422,7 +448,6 @@ std::vector<GlyphImage> FontsEngine::render(const Font& f, const std::u32string&
     }
 
 #ifndef MUSE_MODULE_DRAW_USE_QTTEXTDRAW
-    double pixelScale = rf->pixelScale();
     double glyphLeft = 0;
 
     TextBlock textBlock;
@@ -431,27 +456,40 @@ std::vector<GlyphImage> FontsEngine::render(const Font& f, const std::u32string&
 
     std::vector<FontFaceTextBlock> fontFaceBlocks = splitTextByFontFaces(rf, textBlock);
     for (const FontFaceTextBlock& ffBlock : fontFaceBlocks) {
-        if (!ffBlock.face) {
-            continue;
+        const IFontFace* layoutFace = ffBlock.face;
+        if (!layoutFace) {
+            if (isZeroAdvanceText(ffBlock.text.text, ffBlock.text.lenght)) {
+                continue;
+            }
+
+            layoutFace = rf->face;
         }
 
-        std::vector<GlyphPos> glyphs = ffBlock.face->glyphs(ffBlock.text.text, ffBlock.text.lenght);
+        const IFontFace* sdfFace = sdfFontFaceFor(layoutFace);
+        if (!sdfFace) {
+            //! NOTE Fall back to the layout face itself rather than dropping this run's glyphs
+            sdfFace = layoutFace;
+        }
+
+        double layoutScale = rf->pixelScaleFor(layoutFace);
+        double sdfToLayoutScale = rf->pixelScaleFor(sdfFace);
+        std::vector<GlyphPos> glyphs = layoutFace->glyphs(ffBlock.text.text, ffBlock.text.lenght);
 
         for (const GlyphPos& g : glyphs) {
             if (NOT_RENDER_GLYPHS.find(g.idx) == NOT_RENDER_GLYPHS.end()) {
-                GlyphImage image = m_renderCache.load(ffBlock.face->key(), g.idx);
+                GlyphImage image = m_renderCache.load(sdfFace->key(), g.idx);
                 if (image.isNull()) {
-                    image = ffBlock.face->glyphImage(g.idx);
-                    m_renderCache.store(ffBlock.face->key(), g.idx, image);
+                    image = sdfFace->glyphImage(g.idx);
+                    m_renderCache.store(sdfFace->key(), g.idx, image);
                 }
 
-                image.rect = scaleRect(image.rect, pixelScale);
+                image.rect = scaleRect(image.rect, sdfToLayoutScale);
                 image.rect.translate(glyphLeft, 0);
 
                 images.push_back(std::move(image));
             }
 
-            glyphLeft += from_f26d6(g.x_advance) * pixelScale;
+            glyphLeft += from_f26d6(g.x_advance) * layoutScale;
         }
     }
 #endif
@@ -470,9 +508,70 @@ IFontFace* FontsEngine::createFontFace(const io::path_t& path) const
         return m_fontFaceFactory(path);
     }
 
-    IFontFace* origin = new FontFaceFT();
+    IFontFace* origin = nullptr;
+    if (io::FileInfo::suffix(path).toLower() == u"ftx") {
+#ifdef MUSE_MODULE_DRAW_USE_FONTFACE_XT
+        origin = new FontFaceXT();
+#else
+        LOGE() << "XT font face backend is disabled: " << path;
+        return nullptr;
+#endif
+    } else {
+#ifdef MUSE_MODULE_DRAW_USE_FONTFACE_FT
+        origin = new FontFaceFT();
+#else
+        LOGE() << "FreeType font face backend is disabled: " << path;
+        return nullptr;
+#endif
+    }
 
     return new FontFaceDU(origin);
+}
+
+IFontFace* FontsEngine::fontFace(const FontDataKey& dataKey, Font::Type type, int pixelSize, bool isSymbolMode) const
+{
+    io::path_t fontPath = fontsDatabase()->fontPath(dataKey, type);
+    if (fontPath.empty()) {
+        LOGE() << "font path is empty: " << dataKey.family().id();
+        return nullptr;
+    }
+
+    const int loadedPixelSize = loadedPixelSizeForFontPath(fontPath, pixelSize);
+
+    for (IFontFace* face : m_loadedFaces) {
+        if (face->key().dataKey == dataKey && face->key().type == type && face->key().pixelSize == loadedPixelSize
+            && face->isSymbolMode() == isSymbolMode) {
+            return face;
+        }
+    }
+
+    FaceKey loadedKey;
+    loadedKey.dataKey = dataKey;
+    loadedKey.type = type;
+    loadedKey.pixelSize = loadedPixelSize;
+
+    IFontFace* face = createFontFace(fontPath);
+    IF_ASSERT_FAILED(face) {
+        return nullptr;
+    }
+
+    if (!face->load(loadedKey, fontPath, isSymbolMode)) {
+        LOGE() << "failed load font face: " << fontPath;
+        delete face;
+        return nullptr;
+    }
+
+    m_loadedFaces.push_back(face);
+    return face;
+}
+
+IFontFace* FontsEngine::sdfFontFaceFor(const IFontFace* layoutFace) const
+{
+    if (!layoutFace) {
+        return nullptr;
+    }
+
+    return fontFace(layoutFace->key().dataKey, layoutFace->key().type, static_cast<int>(LOADED_PIXEL_SIZE), layoutFace->isSymbolMode());
 }
 
 FontsEngine::RequireFace* FontsEngine::fontFace(const Font& f, bool isSymbolMode) const
@@ -499,70 +598,26 @@ FontsEngine::RequireFace* FontsEngine::fontFace(const Font& f, bool isSymbolMode
         }
     }
 
-    //! If we didn't find it, we create a new require font
-    RequireFace* newFont = new RequireFace();
-    newFont->requireKey = requireKey;
-
     //! Let's find out which real font will be used
     //! (for example, if there is no required one)
     FontDataKey actualDataKey = fontsDatabase()->actualFont(requireKey.dataKey, requireKey.type);
 
-    //! NOTE We are looking for the font face we real need among the previously loaded ones
-    IFontFace* face = nullptr;
-    for (IFontFace* ff : m_loadedFaces) {
-        if (ff->key().dataKey == actualDataKey && ff->key().pixelSize == requireKey.pixelSize && ff->isSymbolMode() == isSymbolMode) {
-            face = ff;
-            break;
-        }
-    }
-
-    //! NOTE If we haven't found a face, we'll create a new one
+    IFontFace* face = fontFace(actualDataKey, requireKey.type, requireKey.pixelSize, isSymbolMode);
     if (!face) {
-        io::path_t fontPath = fontsDatabase()->fontPath(requireKey.dataKey, requireKey.type);
-        IF_ASSERT_FAILED(!fontPath.empty()) {
-            return nullptr;
-        }
-
-        FaceKey loadedKey;
-        loadedKey.dataKey = actualDataKey;
-        loadedKey.type = requireKey.type;
-        loadedKey.pixelSize = requireKey.pixelSize;
-
-        face = createFontFace(fontPath);
-
-        face->load(loadedKey, fontPath, isSymbolMode);
-        m_loadedFaces.push_back(face);
+        return nullptr;
     }
 
+    //! If we didn't find it, we create a new require font
+    RequireFace* newFont = new RequireFace();
+    newFont->requireKey = requireKey;
     newFont->face = face;
 
-    IFontFace* subtitutionFace = nullptr;
-    auto subtitutionFontDataKeys = fontsDatabase()->substitutionFonts(requireKey.type);
+    auto subtitutionFontDataKeys = fontsDatabase()->substitutionFonts(requireKey.dataKey);
     for (const FontDataKey& dataKey : subtitutionFontDataKeys) {
-        for (IFontFace* ff : m_loadedFaces) {
-            if (ff->key().dataKey == dataKey && ff->key().pixelSize == requireKey.pixelSize && ff->isSymbolMode() == isSymbolMode) {
-                subtitutionFace = ff;
-                break;
-            }
+        IFontFace* subtitutionFace = fontFace(dataKey, requireKey.type, requireKey.pixelSize, isSymbolMode);
+        if (subtitutionFace) {
+            newFont->subtitutionFaces.push_back(subtitutionFace);
         }
-
-        if (!subtitutionFace) {
-            io::path_t fontPath = fontsDatabase()->fontPath(dataKey, requireKey.type);
-            IF_ASSERT_FAILED(!fontPath.empty()) {
-                return nullptr;
-            }
-
-            FaceKey loadedKey;
-            loadedKey.dataKey = dataKey;
-            loadedKey.type = requireKey.type;
-            loadedKey.pixelSize = requireKey.pixelSize;
-
-            subtitutionFace = createFontFace(fontPath);
-
-            subtitutionFace->load(loadedKey, fontPath, isSymbolMode);
-            m_loadedFaces.push_back(subtitutionFace);
-        }
-        newFont->subtitutionFaces.push_back(subtitutionFace);
     }
 
     m_requiredFaces.push_back(newFont);
