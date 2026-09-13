@@ -32,24 +32,48 @@ void AppUpdateScenarioStub::checkForUpdate(bool)
 {
 }
 
-bool AppUpdateScenarioStub::checkInProgress() const
-{
-    return false;
-}
-
-muse::async::Notification AppUpdateScenarioStub::checkInProgressChanged() const
-{
-    return {};
-}
-
 bool AppUpdateScenarioStub::hasUpdate() const
 {
     return false;
 }
 
-muse::async::Promise<muse::Ret> AppUpdateScenarioStub::showUpdate()
+bool AppUpdateScenarioStub::hasReadyUpdate() const
 {
-    return muse::async::Promise<muse::Ret>([](auto /*resolve*/, auto reject) {
-        return reject(int(muse::Ret::Code::UnknownError), "stub");
-    });
+    return false;
+}
+
+muse::async::Notification AppUpdateScenarioStub::hasReadyUpdateChanged() const
+{
+    return {};
+}
+
+std::string AppUpdateScenarioStub::readyUpdateVersion() const
+{
+    return {};
+}
+
+void AppUpdateScenarioStub::installReadyUpdate()
+{
+}
+
+bool AppUpdateScenarioStub::hasCompletedUpdate() const
+{
+    return false;
+}
+
+muse::async::Notification AppUpdateScenarioStub::hasCompletedUpdateChanged() const
+{
+    return {};
+}
+
+void AppUpdateScenarioStub::dismissCompletedUpdate()
+{
+}
+
+void AppUpdateScenarioStub::showReadyUpdateInfo()
+{
+}
+
+void AppUpdateScenarioStub::dismissReadyUpdate()
+{
 }

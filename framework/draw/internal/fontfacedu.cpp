@@ -53,9 +53,9 @@ FontFaceDU::~FontFaceDU()
     delete m_origin;
 }
 
-bool FontFaceDU::load(const FaceKey& key, const io::path_t& path, bool isSymbolMode)
+bool FontFaceDU::load(const FaceKey& key, const FontData& fontData, bool isSymbolMode)
 {
-    return m_origin->load(key, path, isSymbolMode);
+    return m_origin->load(key, fontData, isSymbolMode);
 }
 
 const FaceKey& FontFaceDU::key() const
@@ -91,6 +91,16 @@ f26dot6_t FontFaceDU::xHeight() const
 f26dot6_t FontFaceDU::capHeight() const
 {
     return m_origin->capHeight();
+}
+
+f26dot6_t FontFaceDU::underlinePos() const
+{
+    return m_origin->underlinePos();
+}
+
+f26dot6_t FontFaceDU::lineWidth() const
+{
+    return m_origin->lineWidth();
 }
 
 std::vector<GlyphPos> FontFaceDU::glyphs(const char32_t* text, int text_length) const

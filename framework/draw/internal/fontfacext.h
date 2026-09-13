@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "global/io/iodevice.h"
+#include "global/io/buffer.h"
 
 #include "ifontface.h"
 
@@ -78,7 +79,7 @@ public:
         void read(muse::io::IODevice* d);
     };
 
-    bool load(const FaceKey& key, const muse::io::path_t& path, bool isSymbolMode) override;
+    bool load(const FaceKey& key, const FontData& fontData, bool isSymbolMode) override;
 
     const FaceKey& key() const override;
     bool isSymbolMode() const override;
@@ -88,6 +89,9 @@ public:
     f26dot6_t descent() const override;
     f26dot6_t xHeight() const override;
     f26dot6_t capHeight() const override;
+
+    f26dot6_t underlinePos() const override;
+    f26dot6_t lineWidth() const override;
 
     std::vector<GlyphPos> glyphs(const char32_t* text, int text_length) const override;
     glyph_idx_t glyphIndex(char32_t ucs4) const override;
@@ -113,12 +117,15 @@ private:
     FaceKey m_key;
     bool m_isSymbolMode = false;
 
+    std::unique_ptr<muse::io::Buffer> m_fileBuffer;
     std::unique_ptr<muse::ZipReader> m_zip;
     f26dot6_t m_leading = -1;
     f26dot6_t m_ascent = -1;
     f26dot6_t m_descent = -1;
     f26dot6_t m_xHeight = -1;
     f26dot6_t m_capHeight = -1;
+    f26dot6_t m_underlinePos = -1;
+    f26dot6_t m_lineWidth = -1;
 
     Ligatures m_ligatures;
     Kernings m_kernings;

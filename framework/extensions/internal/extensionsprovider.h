@@ -26,8 +26,8 @@
 
 #include "modularity/ioc.h"
 #include "../iextensionsconfiguration.h"
+#include "../iextensionsregister.h"
 #include "../iextensionsprovider.h"
-#include "../iextensionsexecpointsregister.h"
 #include "interactive/iinteractive.h"
 #include "io/ifilesystem.h"
 
@@ -35,8 +35,8 @@ namespace muse::extensions {
 class ExtensionsProvider : public IExtensionsProvider, public Contextable, public async::Asyncable
 {
     GlobalInject<IExtensionsConfiguration> configuration;
+    GlobalInject<IExtensionsRegister> extensionsRegister;
     GlobalInject<io::IFileSystem> fileSystem;
-    GlobalInject<IExtensionsExecPointsRegister> execPointsRegister;
     ContextInject<IInteractive> interactive = { this };
 
 public:
@@ -48,28 +48,20 @@ public:
     ManifestList manifestList(Filter filter = Filter::All) const override;
     async::Notification manifestListChanged() const override;
 
-    bool exists(const Uri& uri) const override;
-    const Manifest& manifest(const Uri& uri) const override;
-    async::Channel<Manifest> manifestChanged() const override;
-    Action action(const UriQuery& q) const override;
+    bool exists(const ExtensionUri& uri) const override;
+    const Manifest& manifest(const ExtensionUri& uri) const override;
 
-    KnownCategories knownCategories() const override;
+    void setEnabled(const ExtensionUri& uri, bool enabled) override;
+    bool isEnabled(const ExtensionUri& uri) const override;
+    async::Channel<ExtensionUri> enabledChanged() const override;
 
-    Ret perform(const UriQuery& uri) override;
-    Ret run(const UriQuery& uri) override;
-    std::unique_ptr<IExtensionSession> newSession(const Uri& uri, const io::path_t& relativeScriptPath) const override;
+    Ret perform(const ExtensionUri& uri, const ExtensionActionCode& action) override;
+    Ret run(const ExtensionUri& uri, const ExtensionActionCode& action) override;
 
-    Ret setExecPoint(const Uri& uri, const ExecPointName& name) override;
-    std::vector<ExecPoint> execPoints(const Uri& uri) const override;
-    Ret performPoint(const ExecPointName& name) override;
-    void performPointAsync(const ExecPointName& name) override;
+    std::unique_ptr<IExtensionSession> newSession(const ExtensionUri& uri, const io::path_t& relativeScriptPath) const override;
 
 private:
     Ret run(const Action& action, const Manifest& manifest);
     std::unique_ptr<IExtensionSession> newSession(const Manifest& manifest, const io::path_t& scriptPath) const;
-
-    mutable ManifestList m_manifests;
-    async::Notification m_manifestListChanged;
-    async::Channel<Manifest> m_manifestChanged;
 };
 }

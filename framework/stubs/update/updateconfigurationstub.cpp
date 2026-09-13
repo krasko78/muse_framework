@@ -52,18 +52,31 @@ muse::async::Notification UpdateConfigurationStub::needCheckForUpdateChanged() c
     return n;
 }
 
+bool UpdateConfigurationStub::autoDownloadEnabled() const
+{
+    return false;
+}
+
+void UpdateConfigurationStub::setAutoDownloadEnabled(bool)
+{
+}
+
 std::string UpdateConfigurationStub::skippedReleaseVersion() const
 {
     return "";
 }
 
-void UpdateConfigurationStub::setSkippedReleaseVersion(const std::string&)
+muse::io::path_t UpdateConfigurationStub::lastDownloadedPackagePath() const
+{
+    return "";
+}
+
+void UpdateConfigurationStub::setLastDownloadedPackagePath(const io::path_t&)
 {
 }
 
-bool UpdateConfigurationStub::checkForUpdateTestMode() const
+void UpdateConfigurationStub::setSkippedReleaseVersion(const std::string&)
 {
-    return false;
 }
 
 std::string UpdateConfigurationStub::checkForAppUpdateUrl() const
@@ -91,12 +104,31 @@ std::string UpdateConfigurationStub::privacyPolicyUrl() const
     return "";
 }
 
+muse::io::path_t UpdateConfigurationStub::downloadsPath() const
+{
+    return "";
+}
+
 muse::io::path_t UpdateConfigurationStub::updateDataPath() const
 {
     return "";
 }
 
 muse::io::path_t UpdateConfigurationStub::updateRequestHistoryJsonPath() const
+{
+    return "";
+}
+
+std::string UpdateConfigurationStub::installingReleaseVersion() const
+{
+    return {};
+}
+
+void UpdateConfigurationStub::setInstallingReleaseVersion(const std::string&)
+{
+}
+
+muse::io::path_t UpdateConfigurationStub::helperLogPath() const
 {
     return "";
 }

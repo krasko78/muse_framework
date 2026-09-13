@@ -26,9 +26,9 @@
 #include <memory>
 #include <mutex>
 
-#include "../ifilesystem.h"
+#include <QFile>
 
-class QFile;
+#include "../ifilesystem.h"
 
 namespace muse::io {
 class FileSystem : public IFileSystem
@@ -48,6 +48,7 @@ public:
     EntryType entryType(const io::path_t& path) const override;
 
     RetVal<uint64_t> fileSize(const io::path_t& path) const override;
+    RetVal<uint64_t> availableSpace(const io::path_t& path) const override;
 
     RetVal<io::paths_t> scanFiles(const io::path_t& rootDir, const std::vector<std::string>& filters,
                                   ScanMode mode = ScanMode::FilesInCurrentDirAndSubdirs) const override;

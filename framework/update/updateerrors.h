@@ -33,6 +33,7 @@ enum class Err {
     NoUpdate,
     NetworkError,
     ReleaseInfoParseError,
+    NotEnoughDiskSpace,
 };
 
 inline muse::Ret make_ret(Err e, const std::string& text = {})

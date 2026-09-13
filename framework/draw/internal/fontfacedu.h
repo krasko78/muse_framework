@@ -30,7 +30,7 @@ public:
     FontFaceDU(IFontFace* origin);
     ~FontFaceDU();
 
-    bool load(const FaceKey& key, const io::path_t& path, bool isSymbolMode) override;
+    bool load(const FaceKey& key, const FontData& fontData, bool isSymbolMode) override;
 
     const FaceKey& key() const override;
     bool isSymbolMode() const override;
@@ -40,6 +40,9 @@ public:
     f26dot6_t descent() const override;
     f26dot6_t xHeight() const override;
     f26dot6_t capHeight() const override;
+
+    f26dot6_t underlinePos() const override;
+    f26dot6_t lineWidth() const override;
 
     std::vector<GlyphPos> glyphs(const char32_t* text, int text_length) const override;
     glyph_idx_t glyphIndex(char32_t ucs4) const override;

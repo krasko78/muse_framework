@@ -52,10 +52,17 @@ public:
     void setNeedCheckForUpdate(bool needCheck) override;
     muse::async::Notification needCheckForUpdateChanged() const override;
 
+    bool autoDownloadEnabled() const override;
+    void setAutoDownloadEnabled(bool enabled) override;
+
     std::string skippedReleaseVersion() const override;
     void setSkippedReleaseVersion(const std::string& version) override;
 
-    bool checkForUpdateTestMode() const override;
+    std::string installingReleaseVersion() const override;
+    void setInstallingReleaseVersion(const std::string& version) override;
+
+    muse::io::path_t lastDownloadedPackagePath() const override;
+    void setLastDownloadedPackagePath(const muse::io::path_t& path) override;
 
     std::string checkForAppUpdateUrl() const override;
     std::string previousAppReleasesNotesUrl() const override;
@@ -66,7 +73,9 @@ public:
     std::string privacyPolicyUrl() const override;
 
     muse::io::path_t updateDataPath() const override;
+    muse::io::path_t downloadsPath() const override;
     muse::io::path_t updateRequestHistoryJsonPath() const override;
+    muse::io::path_t helperLogPath() const override;
 
 private:
     muse::async::Notification m_needCheckForUpdateChanged;

@@ -54,18 +54,20 @@ FontFaceXT::~FontFaceXT()
 {
 }
 
-bool FontFaceXT::load(const FaceKey& key, const muse::io::path_t& path, bool isSymbolMode)
+bool FontFaceXT::load(const FaceKey& key, const FontData& fontData, bool isSymbolMode)
 {
     m_key = key;
     m_isSymbolMode = isSymbolMode;
 
-    std::unique_ptr<muse::ZipReader> zip = std::make_unique<muse::ZipReader>(path);
-    if (!zip->exists()) {
-        LOGE() << "not exists: " << path;
+    if (!fontData.valid()) {
+        LOGE() << "empty font data: " << key.dataKey.family().id();
         return false;
     }
 
-    m_zip = std::move(zip);
+    m_fileBuffer = std::make_unique<muse::io::Buffer>(muse::ByteArray(fontData.data));
+    m_fileBuffer->open(muse::io::IODevice::ReadOnly);
+
+    m_zip = std::make_unique<muse::ZipReader>(m_fileBuffer.get());
 
     // meta
     {
@@ -105,12 +107,16 @@ bool FontFaceXT::load(const FaceKey& key, const muse::io::path_t& path, bool isS
                 m_xHeight = std::stol(valStr);
             } else if (name == "capHeight") {
                 m_capHeight = std::stol(valStr);
+            } else if (name == "underlinePos") {
+                m_underlinePos = std::stol(valStr);
+            } else if (name == "lineWidth") {
+                m_lineWidth = std::stol(valStr);
             } else {
                 LOGW() << "unknown param: " << name;
             }
         }
 
-        LOGI() << "fxt version: " << ver << ", glyphs: " << glyphs << ", path: " << path;
+        LOGI() << "fxt version: " << ver << ", glyphs: " << glyphs << ", family: " << key.dataKey.family().id();
     }
 
     // ligatures
@@ -273,6 +279,16 @@ f26dot6_t FontFaceXT::xHeight() const
 f26dot6_t FontFaceXT::capHeight() const
 {
     return m_capHeight;
+}
+
+f26dot6_t FontFaceXT::underlinePos() const
+{
+    return m_underlinePos;
+}
+
+f26dot6_t FontFaceXT::lineWidth() const
+{
+    return m_lineWidth;
 }
 
 void FontFaceXT::applyLigatures(std::vector<glyph_idx_t>& glyphs, const Ligatures& ls)

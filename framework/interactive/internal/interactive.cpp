@@ -28,6 +28,7 @@
 #include <QGuiApplication>
 #include <QMetaProperty>
 #include <QMetaType>
+#include <QQmlEngine>
 #include <QUrl>
 #include <QWidget>
 #include <QWindow>
@@ -43,6 +44,7 @@
 
 #include "muse_framework_config.h"
 
+#include "defer.h"
 #include "log.h"
 
 using namespace muse;
@@ -359,7 +361,10 @@ async::Promise<io::path_t> Interactive::selectOpeningFile(const std::string& tit
         dlg->setFileMode(QFileDialog::ExistingFile);
 
         QObject::connect(dlg, &QFileDialog::finished, [dlg, resolve, reject](int result) {
-            dlg->deleteLater();
+            DEFER {
+                //! Must be called AFTER resolve/reject, as they may process posted events
+                dlg->deleteLater();
+            };
 
             QStringList files = dlg->selectedFiles();
 
@@ -549,7 +554,10 @@ async::Promise<Color> Interactive::selectColor(const Color& color, const std::st
         dlg->setOption(QColorDialog::ShowAlphaChannel, allowAlpha);
 
         QObject::connect(dlg, &QColorDialog::finished, [this, dlg, resolve, reject](int result) {
-            dlg->deleteLater();
+            DEFER {
+                //! Must be called AFTER resolve/reject, as they may process posted events
+                dlg->deleteLater();
+            };
 
             uiConfiguration()->setColorDialogCustomColors(getCustomColors());
 
@@ -591,6 +599,7 @@ RetVal<Val> Interactive::openSync(const UriQuery& q)
 
     RetVal<Val> rv;
     QEventLoop loop;
+    bool finished = false;
     Promise<Val>::Resolve resolve;
     Promise<Val>::Reject reject;
     Promise<Val> promise = async::make_promise<Val>([&resolve, &reject](auto res, auto rej) {
@@ -599,14 +608,16 @@ RetVal<Val> Interactive::openSync(const UriQuery& q)
         return Promise<Val>::Result::unchecked();
     }, PromiseType::AsyncByBody);
 
-    promise.onResolve(this, [&rv, &loop](const Val& val) {
+    promise.onResolve(this, [&rv, &loop, &finished](const Val& val) {
         rv = RetVal<Val>::make_ok(val);
+        finished = true;
         loop.quit();
     });
 
-    promise.onReject(this, [&rv, &loop](int code, const std::string& err) {
+    promise.onReject(this, [&rv, &loop, &finished](int code, const std::string& err) {
         LOGE() << code << " " << err;
         rv.ret = make_ret(code, err);
+        finished = true;
         loop.quit();
     });
 
@@ -616,6 +627,12 @@ RetVal<Val> Interactive::openSync(const UriQuery& q)
     ContainerMeta openMeta = uriRegister()->meta(q.uri());
     if (openMeta.type == ContainerMeta::PrimaryPage) {
         LOGW() << "Primary pages should not open in synchronous mode, please fix this.";
+        return rv;
+    }
+
+    //! NOTE: The dialog may have finished synchronously while opening (e.g. it
+    //! closed itself on load); quit() before exec() is lost, so don't enter the loop.
+    if (finished) {
         return rv;
     }
 
@@ -680,14 +697,8 @@ Promise<Val>::BodyResolveReject Interactive::openFunc(const UriQuery& q, const Q
             openedRet = openQml(q.uri(), params);
             break;
         case ContainerMeta::Undefined: {
-            //! NOTE Not found default, try extension
-            extensions::Manifest ext = extensionsProvider()->manifest(q.uri());
-            if (ext.isValid()) {
-                openedRet = openExtensionDialog(q, params);
-            } else {
-                openedRet.ret = make_ret(Ret::Code::UnknownError);
-            }
-        }
+            openedRet.ret = make_ret(Ret::Code::UnknownError);
+        } break;
         }
 
         if (!openedRet.ret) {
@@ -882,30 +893,6 @@ Ret Interactive::closeObjectsSync(const std::vector<ObjectInfo>& objs)
     return ret;
 }
 
-void Interactive::fillExtData(QmlLaunchData* data, const UriQuery& q, const QVariantMap& params_) const
-{
-    static Uri VIEWER_URI = Uri("muse://extensions/viewer");
-
-    ContainerMeta meta = uriRegister()->meta(VIEWER_URI);
-    data->setValue("module", meta.qmlModule);
-    data->setValue("path", meta.qmlPath);
-    data->setValue("type", meta.type);
-
-    QVariantMap params = params_;
-    params["uri"] = QString::fromStdString(q.toString());
-
-    //! NOTE Extension dialogs open as non-modal by default
-    //! The modal parameter must be present in the uri
-    //! But here, just in case, `true` is indicated by default,
-    //! since this value is set in the base class of the dialog by default
-    if (!params.contains("modal")) {
-        params["modal"] = q.param("modal", Val(true)).toBool();
-    }
-
-    data->setValue("uri", QString::fromStdString(VIEWER_URI.toString()));
-    data->setValue("params", params);
-}
-
 void Interactive::fillData(QmlLaunchData* data, const Uri& uri, const QVariantMap& params) const
 {
     ContainerMeta meta = uriRegister()->meta(uri);
@@ -1052,6 +1039,7 @@ Ret Interactive::toRet(const QVariant& jsr) const
 
     Ret ret;
     ret.setCode(jsobj.value("errcode").toInt());
+    ret.setText(jsobj.value("text").toString().toStdString());
     return ret;
 }
 
@@ -1072,20 +1060,6 @@ RetVal<Val> Interactive::toRetVal(const QVariant& jsrv) const
     rv.val = Val::fromQVariant(val);
 
     return rv;
-}
-
-RetVal<Interactive::OpenData> Interactive::openExtensionDialog(const UriQuery& q, const QVariantMap& params)
-{
-    QmlLaunchData data;
-    fillExtData(&data, q, params);
-
-    m_openRequested.send(&data);
-
-    RetVal<OpenData> result;
-    result.ret = toRet(data.value("ret"));
-    result.val.objectId = data.value("objectId").toString();
-
-    return result;
 }
 
 RetVal<Interactive::OpenData> Interactive::openWidgetDialog(const Uri& uri, const QVariantMap& params)

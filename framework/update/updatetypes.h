@@ -42,10 +42,19 @@ struct PrevReleaseNotes {
 };
 using PrevReleasesNotesList = std::vector<PrevReleaseNotes>;
 
+struct InstallProgressUi {
+    std::string title;              //!< window caption, e.g. "MuseScore Studio"
+    std::string message;            //!< e.g. "Installing MuseScore Studio 4.6.1"
+    std::string backgroundColor;    //!< "#RRGGBB"
+    std::string accentColor;        //!< "#RRGGBB"
+    std::string textColor;          //!< "#RRGGBB"
+};
+
 struct ReleaseInfo {
     std::string version;
     std::string fileName;
     std::string fileUrl;
+    uint64_t fileSize = 0;
 
     std::string imageUrl;           // it can be base64 data, like "data:image/png;base64,iVBORw0KGgoA......"
     std::string notes;
@@ -63,7 +72,7 @@ struct ReleaseInfo {
     }
 };
 
-static ValList releasesNotesToValList(const PrevReleasesNotesList& list)
+static inline ValList releasesNotesToValList(const PrevReleasesNotesList& list)
 {
     ValList valList;
     for (const PrevReleaseNotes& release : list) {
@@ -74,50 +83,6 @@ static ValList releasesNotesToValList(const PrevReleasesNotesList& list)
     }
 
     return valList;
-}
-
-static PrevReleasesNotesList releasesNotesFromValList(const ValList& list)
-{
-    PrevReleasesNotesList notes;
-    for (const Val& val : list) {
-        ValMap releaseMap = val.toMap();
-        notes.emplace_back(releaseMap.at("version").toString(), releaseMap.at("notes").toString());
-    }
-
-    return notes;
-}
-
-static inline ValMap releaseInfoToValMap(const ReleaseInfo& info)
-{
-    return {
-        { "version", Val(info.version) },
-        { "fileName", Val(info.fileName) },
-        { "fileUrl", Val(info.fileUrl) },
-        { "notes", Val(info.notes) },
-        { "previousReleasesNotes", Val(releasesNotesToValList(info.previousReleasesNotes)) },
-        { "additionalInfo", Val(info.additionInfo) },
-        { "imageUrl", Val(info.imageUrl) },
-        { "actionTitle", Val(info.actionTitle) },
-        { "cancelTitle", Val(info.cancelTitle) },
-        { "actions", Val(info.actions) },
-    };
-}
-
-static inline ReleaseInfo releaseInfoFromValMap(const ValMap& map)
-{
-    ReleaseInfo info;
-    info.version = map.at("version").toString();
-    info.fileName = map.at("fileName").toString();
-    info.fileUrl = map.at("fileUrl").toString();
-    info.notes = map.at("notes").toString();
-    info.previousReleasesNotes = releasesNotesFromValList(map.at("previousReleasesNotes").toList());
-    info.additionInfo = map.at("additionalInfo").toMap();
-    info.imageUrl = map.at("imageUrl").toString();
-    info.actionTitle = map.at("actionTitle").toString();
-    info.cancelTitle = map.at("cancelTitle").toString();
-    info.actions = map.at("actions").toList();
-
-    return info;
 }
 }
 

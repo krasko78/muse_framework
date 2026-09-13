@@ -21,7 +21,7 @@
  */
 #pragma once
 
-#include "global/io/path.h"
+#include "global/types/bytearray.h"
 #include "types/fontstypes.h"
 
 namespace muse::draw {
@@ -43,7 +43,7 @@ public:
 
     virtual ~IFontFace() = default;
 
-    virtual bool load(const FaceKey& key, const io::path_t& path, bool isSymbolMode) = 0;
+    virtual bool load(const FaceKey& key, const FontData& fontData, bool isSymbolMode) = 0;
 
     virtual const FaceKey& key() const = 0;
     virtual bool isSymbolMode() const = 0;
@@ -53,6 +53,9 @@ public:
     virtual f26dot6_t descent() const = 0;
     virtual f26dot6_t xHeight() const = 0;
     virtual f26dot6_t capHeight() const = 0;
+
+    virtual f26dot6_t underlinePos() const = 0;
+    virtual f26dot6_t lineWidth() const = 0;
 
     virtual std::vector<GlyphPos> glyphs(const char32_t* text, int text_length) const = 0;
     virtual glyph_idx_t glyphIndex(char32_t ucs4) const = 0;
